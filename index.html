@@ -1,4 +1,3 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
 <title>Bortnikova & Daughters</title>
 <meta charset="utf-8">
 <script>window.SITE_MODE = true;</script>
@@ -82,8 +81,10 @@
      загорается»). Обычная рука-указатель, кончик пальца — в кнопке; один раз, когда человек подошёл. */
   #taphand { position: fixed; left: 0; top: 0; opacity: 0; pointer-events: none; will-change: transform, opacity;
              filter: drop-shadow(0 1px 2px rgba(40,30,20,.25)); transform-origin: 8px 1.5px; }
+  #veil { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 50; pointer-events: none; background: var(--air); image-rendering: pixelated; }
 </style>
 
+<canvas id="veil" aria-hidden="true"></canvas>
 <canvas id="zal" tabindex="0" aria-label="Складной холст «Первое море». Нажмите, чтобы раскрыть или свернуть."></canvas>
 <div id="hint" class="smallcaps"><b id="hint1">Коснитесь холста</b><br>Ведите по экрану, чтобы осмотреть · + − приблизить</div>
 <div id="label" class="smallcaps" hidden>Первое море<br>2026<br><span class="soft">Акварель, бумага</span></div>
@@ -324,6 +325,31 @@ const DOM = params.has('dom') || ZONA;
 // ?site — САЙТ (Анныч, 8 окт): картина на нашем шпагате между двумя белыми столбиками
 // (столбик/столбики.js), белая пустота без пола. План — холст/САЙТ-ПЛАН.md.
 const SITE = params.has('site') || window.SITE_MODE === true;   // сайт.html (сайт.py) ставит флаг сам
+// ПОЯВЛЕНИЕ РАЗОМ (её слово 13 окт: «сначала работа, потом куст — надо, чтобы всё вместе… маленькими пикселями;
+// у Ника были огромные пиксели, долго»). Пока не готово всё — работа, вазы, куст, бабочка — экран закрыт цветом
+// воздуха; потом покрывало рассыпается пикселями по 3 точки за 0,7 с (veilOff). Не на сайте покрывала нет.
+let peonyDone = () => {}, bfDone = () => {};
+const veilWait = [new Promise(r => peonyDone = r), new Promise(r => bfDone = r)];
+if (!SITE) document.getElementById('veil')?.remove();
+async function veilOff() {
+  const v = document.getElementById('veil'); if (!v) return;
+  await Promise.race([Promise.all(veilWait), new Promise(r => setTimeout(r, 20000))]);
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));   // два кадра: всё уже нарисовано
+  const B = 3, w = Math.ceil(innerWidth / B), h = Math.ceil(innerHeight / B), g = v.getContext('2d');
+  if (!w || !h || !g) return v.remove();                         // окно свёрнуто — просто снять
+  v.width = w; v.height = h; g.fillStyle = getComputedStyle(document.body).backgroundColor; g.fillRect(0, 0, w, h);
+  v.style.background = 'none';
+  const im = g.getImageData(0, 0, w, h), n = w * h, ord = new Uint32Array(n);
+  for (let i = 0; i < n; i++) ord[i] = i;
+  for (let i = n - 1; i > 0; i--) { const j = Math.random() * (i + 1) | 0, t = ord[i]; ord[i] = ord[j]; ord[j] = t; }
+  const T = 700, t0 = performance.now(); let done = 0;
+  await new Promise(res => { const f = () => {
+    const k = Math.min(n, Math.round(n * (performance.now() - t0) / T));
+    for (; done < k; done++) im.data[ord[done] * 4 + 3] = 0;
+    g.putImageData(im, 0, 0); if (done < n) requestAnimationFrame(f); else res(); };
+    requestAnimationFrame(f); });
+  v.remove();
+}
 // «тишина» (Анныч, 10 окт): на сайте без строчек сверху и без кнопок «+ −» — щипок и колесо остаются
 if (SITE) for (const id of ['hint', 'zoom']) document.getElementById(id).style.display = 'none';
 const WHITE_BG = !DOM && (params.has('loop') || params.has('sun') || params.has('white') || SITE);   // чисто белый фон для роликов и сайта
@@ -592,7 +618,7 @@ async function houseLive(b64) {
       const role = ROLE[m['имя']];
       // у плиты пола из Revit нормали вразнобой — свет считался как снизу, пол выходил серым и чёрным.
       // Плита — горизонталь: всем точкам нормаль вверх
-      if (m['имя'] === 'камень') { const n = g.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 127, 0); }
+      if (m['имя'] === 'камень' || m['имя'] === 'пол') { const n = g.attributes.normal; for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 127, 0); }
       // БАРХАТ: матовый, без блеска; светлеет только ворс на скользящем взгляде (sheen)
       const mat = role === 'сечение' ? new THREE.MeshBasicMaterial({ side: THREE.DoubleSide })
         : role === 'бархат' ? crushed(new THREE.MeshPhysicalMaterial({ roughness: 1, metalness: 0, specularIntensity: 0,
@@ -639,30 +665,134 @@ async function houseLive(b64) {
   await build(names.includes(params.get('ch')) ? params.get('ch') : names[0]); tm('дом: геометрия');
   for (const n in houseSets) houseSets[n].visible = true;
   houseApply(); tm('дом: цвета');
+  // БЕЗ ДОМА (Анныч, 12 окт): от дома — только две стойки с гвоздями нитки; земля — ровная белая
+  // плоскость на нулевой отметке, где стоял дом («просто на плоскость»); на ней растёт куст.
+  if (houseSets['балки']) {
+    const fy = -1.628;   // нулевая отметка — верх пола дома (замер по плите Revit)
+    // землю не делаем (её слово: «как будто цветы из земли растут, и балки на земле стоят, просто землю не делаем») —
+    // плоскость невидима, на ней только тени, чтобы куст и стойки стояли, а не висели в белом
+    const land = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({ opacity: 0.16 }));
+    land.rotation.x = -Math.PI / 2; land.position.y = fy; land.receiveShadow = true; land.name = 'земля'; scene.add(land);
+    // стойки Revit уходят на 25 см ниже отметки (в фундамент) — земли не видно, поэтому срезаем по отметке
+    renderer.localClippingEnabled = true; const cut = [new THREE.Plane(new THREE.Vector3(0, 1, 0), -fy)];
+    houseSets['балки'].traverse(o => { if (o.isMesh) o.material.clippingPlanes = cut; });
+    // РАБОТЫ ВЫБЕЛЕНЫ (Анныч, 12 окт вечером: «это именно с освещением, фотографии не трогать»). Замер: на бумагу
+    // падало в 1,76 раза больше света, чем нужно, чтобы она была того цвета, что на снимке, — и три четверти его
+    // давала «комната» вокруг (RoomEnvironment ×0,58), заведённая ради блеска латуни. Пока вокруг был дом, это
+    // было незаметно; на белом — светлая бумага уходила за плечо кривой Neutral и бледнела. Латунь, пластик,
+    // гвозди видят свою комнату (у них своё отражение), поэтому общий рассеянный свет можно убавить без вреда
+    // им: 0,25 — бумага получает ×1,0 (солнце 0,45 + комната 0,55), снимок как есть. ?envd= — подобрать.
+    scene.environmentIntensity = +(params.get('envd') ?? 0.25);
+    // ПОЛ ДЛЯ ГЛАЗА (её слово: «приблизилась к полу и потерялась… как будто человек лёг на землю»; «под
+    // плоскость мы не можем забраться»). Прежде низ простора стоял на 67 см ПОД землёй (−2,3), а стены
+    // убранного зала держали камеру внутри несуществующих стен. Теперь глаз не ниже 75 см — присел на корточки.
+    ZBOX.y0 = fy + 0.75; NOHOUSE = true;
+    // КОЛЫШКИ ВМЕСТО БАЛОК (Анныч, 12 окт вечером: «балки убери, гвозди оставь… гвоздь в воздухе странно —
+    // может, просто белые тонкие бруски, квадратные, воткнутые в землю, в них гвоздики»). Это «может быть» —
+    // показываю дёшево: брусок 35 × 35 мм, белый, от земли до 6 см над гвоздём; грань — там, где была грань
+    // стойки, гвоздь и витки нитки не сдвинуты ни на миллиметр. ?kol=0 — без них, гвозди в воздухе.
+    if (params.get('kol') !== '0') {
+      const S = 0.035, wood = new THREE.MeshStandardMaterial({ color: 0xf3f1ec, roughness: 0.85 });
+      for (const [k, P] of POSTS.entries()) {
+        const sg = k ? -1 : 1, face = k ? P.x0 : P.x1, xe = k ? ROPE_X1 : ROPE_X0, ny = ropeY(xe) - 0.005 - ROPE_R;   // ось гвоздя: под шляпкой (HEAD_R 5 мм) и шпагатом
+        const top = ny + 0.06, b = new THREE.Mesh(new THREE.BoxGeometry(S, top - fy, S), wood);
+        b.position.set(face - sg * S / 2, (top + fy) / 2, -T / 2); b.castShadow = b.receiveShadow = true; b.name = 'колышек';
+        scene.add(b); stakeBoxes.push(new THREE.Box3().setFromObject(b).expandByScalar(0.06));
+      }
+    }
+  }
+  if (SITE && params.get('kust') !== '0') peonyBush(hEnv).catch(e => console.warn('куст:', e)).finally(() => peonyDone());
+  else peonyDone();
   if (!SITE || params.has('nastr')) housePanel();   // на сайте — только по тайной ссылке ?nastr
   DOF.on = params.get('dof') !== '0';
   window.__house = houseSets; window.__HT = HT; window.__houseApply = houseApply;
-  if (ZONA && params.get('lampa') !== '0') lampa(hEnv);
+  // 13 окт, её слово: «убери переноску, убери гвоздик для переноски» — ?lampa=1 вернёт обе
+  if (ZONA && params.get('lampa') === '1') lampa(hEnv);
   tm('дом: лампа');
+}
+// КУСТ ПИОНОВ ИЗ ЕЁ САДА (Анныч, 12 окт: «для объёма, масштаба… пусть он там бы рос»). Метр по листьям,
+// растёт прямо из земли рядом с «Двумя вазами». 12 окт вечером построен заново на странице (холст/пион.js):
+// по ботанике, всё разное, ничто сквозь бутон не проходит, бутоны только на ножках. Качается на ветру и от
+// ПАЛЬЦА (её слово: «проводишь пальцем — колышется, как работа от руки»); сквозь него камера не ходит.
+// 13 окт: куст — новая модель Кодекса по её фото (холст/пион-кодекс.js); ?kust=old — прежний, построенный здесь.
+// ?kust=0 — без куста, ?kseed= — другой куст из того же рецепта (только old), ?kgo= — сила пальца.
+let peonyStep = () => {}, peony = null, peonyHit = () => false;
+// куст начинает качаться (скачиваться и распаковываться) сразу при открытии, пока строится остальное
+const peonyPre = SITE && !['0', 'old'].includes(params.get('kust')) ? import('./пион-кодекс.js').then(m => m.fetchPeony()) : null;
+peonyPre?.catch(e => console.warn('куст:', e));
+async function peonyBush(env) {
+  let floor = scene.getObjectByName('земля')?.position.y ?? 0; const bb = new THREE.Box3();
+  for (const n in houseSets) houseSets[n].traverse(o => { if (o.isMesh && (o.name === 'пол' || o.name === 'камень')) { bb.setFromObject(o); floor = bb.max.y; } });
+  const P = params.get('kust') === 'old'
+    ? (await import('./пион.js')).buildPeony(THREE, { seed: +(params.get('kseed') ?? 7), env })
+    : await (await import('./пион-кодекс.js')).loadPeony(THREE, { env, data: peonyPre });
+  peony = P; tm('куст');
+  const bush = P.group;
+  // под вазами и чуть глубже нитки (её слово 12 окт вечером: «работы в цветах, в зелени — красиво будет»):
+  // смотришь на вазы — под ними и за ними листва; верх куста на полметра ниже листов, ничто их не задевает
+  // куст Кодекса снят с фото со стороны +z: этой стороной — к тому, кто стоит перед картиной
+  bush.position.set(1.0, floor, -0.32); bush.rotation.y = params.get('kust') === 'old' ? 0.6 : +(params.get('krot') ?? -0.3);
+  scene.add(bush); window.__kust = bush; window.__peony = P;
+  bush.updateMatrixWorld(true); bushBox.setFromObject(bush).expandByScalar(0.05);
+  { // купол: полуэллипсоид по очертанию куста в его осях, с запасом 8 см
+    const lb = new THREE.Box3(); for (const m of bush.children) { m.geometry.computeBoundingBox(); lb.union(m.geometry.boundingBox); }
+    const cx = (lb.min.x + lb.max.x) / 2, cz = (lb.min.z + lb.max.z) / 2, E = 0.08;
+    const r = new THREE.Vector3((lb.max.x - lb.min.x) / 2 + E, lb.max.y + E, (lb.max.z - lb.min.z) / 2 + E), rm = Math.min(r.x, r.y, r.z);
+    const inv = bush.matrixWorld.clone().invert(), l = new THREE.Vector3();
+    bushDome = p => { l.copy(p).applyMatrix4(inv); if (l.y < -0.05) return 9;
+      return (Math.hypot((l.x - cx) / r.x, l.y / r.y, (l.z - cz) / r.z) - 1) * rm; };
+  }
+  const kw = +(params.get('kwind') ?? 1);
+  peonyStep = dt => P.step(dt, clock, x => kw * windSig(x));
+  // палец (или мышь) по кусту: ход пальца на экране → в метры на месте куста → толчок стеблям под ним
+  const last = new Map(), mv = new THREE.Vector3(), cr = new THREE.Vector3(), cu = new THREE.Vector3();
+  // палец, лёгший на куст, вид не крутит — он ведёт по кусту (её слово 13 окт); мышь — и просто наведением.
+  // Палец, начавший с работы или с пустого (свернуть, обойти), куст по пути не трогает.
+  if (P.hit) peonyHit = e => { ray.setFromCamera(toNdc(e), cam); return P.hit(ray.ray) < Infinity; };
+  canvas.addEventListener('pointermove', e => {
+    const mine = down && down.bush && down.id === e.pointerId, hover = e.pointerType === 'mouse' && !e.buttons;
+    if (P.hit && !mine && !hover) { last.delete(e.pointerId); return; }
+    const pr = last.get(e.pointerId); last.set(e.pointerId, [e.clientX, e.clientY]); if (!pr) return;
+    const dx = e.clientX - pr[0], dy = e.clientY - pr[1]; if (!dx && !dy) return;
+    ray.setFromCamera(toNdc(e), cam);
+    const d = cam.position.distanceTo(bush.position), k = 2 * d * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) / canvas.clientHeight;
+    cr.setFromMatrixColumn(cam.matrixWorld, 0); cu.setFromMatrixColumn(cam.matrixWorld, 1);
+    mv.copy(cr).multiplyScalar(dx * k).addScaledVector(cu, -dy * k);
+    const L = mv.length(); if (L > 0.08) mv.multiplyScalar(0.08 / L);
+    P.poke(ray.ray, mv.multiplyScalar(+(params.get('kgo') ?? 1)));
+  });
+  canvas.addEventListener('pointerleave', e => last.delete(e.pointerId));
+  canvas.addEventListener('pointerup', e => last.delete(e.pointerId));
 }
 // ЛАМПА-ПЕРЕНОСКА (Анныч, 10 окт ночью: «для уюта — лампочка Ильича в банке»). Обычная литровая банка,
 // крышка закрыта, провод продет сквозь крышку; гвоздик вбит наверху в скат, провод с него спускается
 // отвесно, банка висит около метра над картиной. Потом — такая же над каждой новой работой (её мысль).
 // Свет тёплый, точкой из нити: светит дому и работе; камера сквозь банку не проходит (lampBox).
 // ?lampa=0 — без неё, ?lampk= — сила света (по умолч. 0,8 — подобрать по её глазу).
-const lampBox = new THREE.Box3();
+const lampBox = new THREE.Box3(), stakeBoxes = [], bushBox = new THREE.Box3();   // твёрдое для камеры: банка, колышки, куст
+let bushDome = null;                                     // bushDome(p) — до купола куста, м (внутри минус)
+let NOHOUSE = false;                                       // дома нет (12 окт): стен зала нет — камеру держат пол, куст, колышки
 let lampStep = () => {};                                   // качание переноски на ветру — задаёт lampa()
 function lampa(env) {
   const g = new THREE.Group(); g.name = 'лампа';
   // 10 окт ночью, её поправка: «в два раза ближе к работе» — низ банки 0,5 м над ниткой (было 1,0)
-  const LX = 0, LZ = 0.30, Y0 = 0.5;
+  // 12 окт: дома нет — банка висит на левой стойке (её слово: «вешаем просто рядом, на балку»):
+  // длинный гвоздь (130 мм, в дереве 35) вбит в её грань к картине над узлом нитки, провод через
+  // гвоздь — и по грани стойки вниз, в землю. Банка в 3,5 см от стойки: качаясь, её не задевает.
+  // 12 окт вечером — снова на гвоздь, где висела, над картинами (её слово: «как ты на крышу её вешал, так пусть там
+  // и висит»); крыши нет — гвоздь пока в воздухе («потом что-нибудь придумаем»). Провод с гвоздя — отвесно в землю.
+  const NOH = !!houseSets['балки'], BAL = false, PX1 = POSTS.length ? POSTS[0].x1 : -1.527;
+  const LX = BAL ? PX1 + 0.085 : 0, LZ = BAL ? 0.042 : 0.30, Y0 = 0.5;
   // гвоздь — в левый скат над картиной: внутренняя грань ската x + 3,95 = y (замер лучом), торчит на 3 см
-  const NY = LX + 3.95 - 0.004 - 0.02 * Math.SQRT1_2;
+  const NY = BAL ? Y0 + 0.192 + 0.55 : LX + 3.95 - 0.004 - 0.02 * Math.SQRT1_2;
   const steel = new THREE.MeshStandardMaterial({ color: 0x8a8682, metalness: 1, roughness: 0.45, envMap: env });
-  const nail = new THREE.Mesh(new THREE.CylinderGeometry(0.0015, 0.0015, 0.035, 8), steel);
-  nail.position.set(LX + 0.006, NY + 0.012, LZ); nail.rotation.z = Math.PI / 4; g.add(nail);
-  const head = new THREE.Mesh(new THREE.CylinderGeometry(0.0035, 0.0035, 0.0012, 12), steel);
-  head.position.set(LX - 0.006, NY, LZ); head.rotation.z = Math.PI / 4; g.add(head);
+  const nail = new THREE.Mesh(new THREE.CylinderGeometry(BAL ? 0.0025 : 0.0015, BAL ? 0.0025 : 0.0015, BAL ? 0.13 : 0.035, 8), steel);
+  const head = new THREE.Mesh(new THREE.CylinderGeometry(BAL ? 0.005 : 0.0035, BAL ? 0.005 : 0.0035, 0.0015, 12), steel);
+  if (BAL) { nail.position.set(PX1 + 0.13 / 2 - 0.035, NY + 0.003, LZ); nail.rotation.z = Math.PI / 2;
+             head.position.set(PX1 + 0.095, NY + 0.003, LZ); head.rotation.z = Math.PI / 2; }
+  else { nail.position.set(LX + 0.006, NY + 0.012, LZ); nail.rotation.z = Math.PI / 4;
+         head.position.set(LX - 0.006, NY, LZ); head.rotation.z = Math.PI / 4; }
+  g.add(nail, head);
   // БАНКА — обычная литровая с винтовой крышкой (картинка-образец 10 окт: банка-светильник на полке).
   // Высота 17 см, тулово ⌀ 10 см; плечо сходит в ГОРЛО ⌀ 7,8 см — оно уже тулова на 1,1 см с каждой стороны,
   // под крышкой опоясано валиком (её слово: «у неё нет горлышка нормального» — прежде плечо упиралось прямо
@@ -823,7 +953,13 @@ function lampa(env) {
   const hang = tube([[LX, Y0 + 0.192, LZ], [LX, (Y0 + NY) / 2, LZ], [LX, NY - 0.006, LZ], [LX - 0.004, NY + 0.004, LZ - 0.004]]);
   // по скату — наискось к левой стойке (x −1,527, z −0,008…0,092) и по её грани вниз. Прежде шёл по стене
   // и спускался прямо по окну, висел в воздухе на фоне стекла (её взгляд 11 окт).
-  const run = tube([[LX - 0.004, NY + 0.004, LZ - 0.004], [LX - 0.03, NY - 0.02, LZ - 0.006], [-0.8, 3.141, 0.2],
+  // провод в землю прошёл бы отвесно прямо перед картиной (банка в 30 см перед ней) — поэтому пока он обмотан
+  // вокруг гвоздя и свисает коротким хвостом, 12 см
+  const run = NOH ? tube([[LX - 0.004, NY + 0.004, LZ - 0.004], [LX - 0.012, NY - 0.002, LZ - 0.010], [LX - 0.010, NY - 0.04, LZ - 0.016],
+                          [LX - 0.004, NY - 0.09, LZ - 0.018], [LX + 0.004, NY - 0.12, LZ - 0.014]])
+    : BAL ? tube([[LX - 0.004, NY + 0.004, LZ - 0.004], [PX1 + 0.04, NY + 0.0055, LZ - 0.004], [PX1 + 0.006, NY - 0.01, 0.08],
+                          [PX1 + 0.0035, NY - 0.08, 0.085], [PX1 + 0.0035, -1.63, 0.085], [PX1 + 0.0035, -1.68, 0.085]])   // по стойке — в землю
+    : tube([[LX - 0.004, NY + 0.004, LZ - 0.004], [LX - 0.03, NY - 0.02, LZ - 0.006], [-0.8, 3.141, 0.2],
                     [-1.42, 2.521, 0.1], [-1.523, 2.38, 0.075], [-1.523, 2.25, 0.075], [-1.523, -1.63, 0.075], [-1.523, -1.68, 0.075]]);   // пол −1,63: уходит в него (её слово 11 окт)
   g.add(hang, run);
   g.traverse(o => { if (o.isMesh) o.castShadow = false; });
@@ -1336,7 +1472,13 @@ const X_C = [-(HP / 2 - CLIP_IN), HP / 2 - CLIP_IN];
 // (её отзыв на v6): тело 17 мм в ширину, между телами 21 мм воздуха — качаясь, они не сталкиваются.
 // Сайт (Анныч, 8 окт): справа от работы две пустые — ближе к работе и вплотную друг к другу, как в петле;
 // на крайней правой висит бумажка с ценой.
-const X_EMPTY = params.has('loop') ? [-0.98, -0.64, 0.43, 0.468, 0.98] : SITE ? [-0.98, -0.64, 0.425, 0.49] : [-0.98, -0.64, 0.48, 0.98];
+// «ДВЕ ВАЗЫ» (Анныч, 12 окт: «повесь рядышком с Первым морем»): каждая ваза — на своей латунной
+// прищепке справа от бумажки, между листами воздух; качаются с ниткой, как бумажка. ?vazy=0 — без них.
+const VAZY = SITE && params.get('vazy') !== '0';
+const X_VAZY = [0.80, 1.00];
+// табличка «Двух ваз» — на своей прищепке справа от второго листа (её слово 12 окт вечером: «такую же табличку»)
+const X_TAG_V = 1.12;
+const X_EMPTY = params.has('loop') ? [-0.98, -0.64, 0.43, 0.468, 0.98] : SITE ? [-0.98, -0.64, 0.425, 0.49, ...(VAZY ? [...X_VAZY, X_TAG_V] : [])] : [-0.98, -0.64, 0.48, 0.98];
 const X_OUT = X_C[X_C.length - 1];
 const siteBase = x => { const b = SITE ? ROPE_A : 1.5; return ROPE_ABOVE - SAG * (1 - (x / b) ** 2) + SAG * (1 - (X_OUT / b) ** 2); };
 // ЗОНА: от крайней левой до крайней правой прищепки нитка — ровно сайтовая (все касания зажимов, колец,
@@ -1369,7 +1511,7 @@ const boxClear = (x, y, z) => Math.min(x - ZBOX.x0, ZBOX.x1 - x, y - ZBOX.y0, ZB
 const HALL_G = 0.35, HALL_FRONT = 0.96 + 1.5, SQ = Math.SQRT1_2;
 const HALL_PL = [[-1, 0, 0, 1.73 - HALL_G], [1, 0, 0, 3.83 - HALL_G], [0, -1, 0, 1.63 - HALL_G], [0, 0, -1, 1.65 - HALL_G],
                  [SQ, SQ, 0, SQ * (1.06 + 5.01) - HALL_G], [-SQ, SQ, 0, SQ * (5.01 - 1.06) - HALL_G]];   // n·p ≤ c
-const inHall = p => p.z < HALL_FRONT && HALL_PL.every(n => n[0] * p.x + n[1] * p.y + n[2] * p.z <= n[3] + 0.02);
+const inHall = p => !NOHOUSE && p.z < HALL_FRONT && HALL_PL.every(n => n[0] * p.x + n[1] * p.y + n[2] * p.z <= n[3] + 0.02);
 //          // докуда камера отходит от картины в доме (Анныч, 10 окт 22:00: 5 м мало — видеть весь фронтон, все 4 окна)
 const ZONE_T = [[-1.5, 3.6], [-1.55, 4.7], [-1.7, 5.0]];   // куда может смотреть взгляд в доме (x, y, z): зал по замеру 10 окт — x −1,64…3,76, пол −1,59, конёк 4,93, торец за картиной −1,88
 // ход по дому — см. «ЗОНА: ход по дому» у placeCamera; объявлено здесь, чтобы было до первого кадра
@@ -2422,14 +2564,14 @@ let pointerNear = -1;                                   // над каким з�
 // в жизни нет вовсе. На телефоне наведения не существует в принципе. Теперь: пальцы
 // (или кнопка мыши) жмут — раскрывается; отпустили — закрылся.
 let clipPress = -1;
-const spin0 = [1.9, -0.7, 2.8, 0.4, -2.1, 1.2, 0.9, -1.5];   // у каждого кольца разрез смотрит в свою сторону
+const spin0 = [1.9, -0.7, 2.8, 0.4, -2.1, 1.2, 0.9, -1.5, 2.3, -0.4];   // у каждого кольца разрез смотрит в свою сторону
 const clipState = clips.map((c, k) => {
   const st = mkState(true, BN_TH_HOLD, BN_TH_MAX * 0.97, BN_TH_MAX, HANG);
   st.spin = st.spin0 = spin0[k]; return st;
 });
 // У каждой прищепки своя частота, ±5 %: латунь отлита и согнута по-разному, и висят они
 // на чуть разной длине. Одинаковые качались бы в ногу, как солдаты.
-const SW_K = [1.00, 0.95, 1.04, 0.97, 1.05, 0.98, 1.02, 0.96];
+const SW_K = [1.00, 0.95, 1.04, 0.97, 1.05, 0.98, 1.02, 0.96, 1.03, 0.97];
 const emptyState = empties.map((c, k) => { const st = mkState(false); st.spin = st.spin0 = spin0[k + 3];
   st.rigid = true; st.kw = SW_K[k + 3] ** 2; return st; });
 clipState.forEach((st, k) => { st.kw = SW_K[k] ** 2; });
@@ -2481,7 +2623,7 @@ function clipStep(st, dt, swingDrive, ay = 0) {
   // Затухание поднято (её слово: «только дотронешься — и всё пляшет»). Латунь на нитке
   // звенит недолго: доля критического затухания ~0,2, а не 0,07, как было.
   const gEff = 1 + THREE.MathUtils.clamp(ay / G, -0.6, 1.5);   // нитка идёт вверх — прищепка «тяжелеет»
-  st.dsw += (-150 * (st.kw || 1) * gEff * Math.sin(st.sw) - 4.8 * st.dsw + swingDrive * Math.cos(st.sw)) * dt; st.sw += st.dsw * dt;
+  st.dsw += (-150 * (st.kw || 1) * gEff * Math.sin(st.sw) - (st.softT > clock ? 1.4 : 4.8) * st.dsw + swingDrive * Math.cos(st.sw)) * dt; st.sw += st.dsw * dt;
   st.dring += (-90 * st.ring - 3.6 * st.dring + swingDrive * 0.5) * dt; st.ring += st.dring * dt;
 }
 // uy, uz — направление от проушины к нитке в системе самого зажима; chi — крен работы.
@@ -2761,7 +2903,7 @@ function tagHeight(kind) {
   // цена — у Кодекса 64 при квадрате 560 и разрядке 1,3
   const k = N / 560, px = 64 * k, track = 1.3 * k;
   g.fillStyle = '#fff'; g.font = `${px}px AnnaBortnikova`; g.textBaseline = 'alphabetic';
-  const txt = '550 €'; let tw = -track; for (const ch of txt) tw += g.measureText(ch).width + track;
+  const txt = TAG.price || '550 €'; let tw = -track; for (const ch of txt) tw += g.measureText(ch).width + track;
   let x = (N - tw) / 2; const capH = px * 0.70, y = N + N / 6 + capH / 2;
   for (const ch of txt) { g.fillText(ch, x, y); x += g.measureText(ch).width + track; }
   // кнопка: круг вдавлен на четверть глубины букв (у Кодекса — еле заметно)
@@ -2870,7 +3012,7 @@ function tagColor(kind, h, back = false) {
     for (let i = 0; i < h.length; i++) {
       const d = h[i];
       if (kind.mat === 'brass') { const k = 1 - 0.32 * d; a[4 * i] *= k; a[4 * i + 1] *= k * 0.98; a[4 * i + 2] *= k * 0.93; }   // в углублениях налёт — сам, от времени
-      else if (kind.mat === 'acrylic') { const f = Math.min(1, d * 1.6); a[4 * i] = a[4 * i + 1] = a[4 * i + 2] = 248; a[4 * i + 3] = 4 + 210 * f; }
+      else if (kind.mat === 'acrylic') { const f = Math.min(1, d * 1.6); a[4 * i] = a[4 * i + 1] = a[4 * i + 2] = 248 - 182 * f; a[4 * i + 3] = 4 + 236 * f; }   // буквы тёмно-серые, не чёрные (её слово 12 окт вечером); были матово-белые
       else { const k = 1 - 0.05 * d; a[4 * i] *= k; a[4 * i + 1] *= k; a[4 * i + 2] *= k; }   // на дне оттиска свету тесно — чуть темнее (не краска)
     }
     g.putImageData(img, 0, 0);
@@ -2938,11 +3080,9 @@ function edgeGlint(m) {
   return m;
 }
 const tagCache = {};
-function setTagKind(n) {
-  if (!TAG || !TAG_KINDS[n] || !TAG.img) return;
-  const kind = TAG_KINDS[n]; TAG.kind = n;
-  if (TAG.group) { TAG.group.parent.remove(TAG.group); }
-  if (!tagCache[n]) {
+// Собрать табличку вида n (рельеф, нормали, цвет, сетки). Текст — TAG.img.text, цена — TAG.price:
+// так же собирается и табличка «Двух ваз» (vazyTag), подменив их на время.
+function tagBuild(kind, n) {
     const h = tagHeight(kind); tm('бирка: рельеф');
     const depth = kind.mat === 'brass' ? 10 : kind.mat === 'acrylic' ? 8 : 13;    // бумага: при 7 буквы еле читались
     const nFront = tagNormal(h, depth, kind.mat === 'paper' ? (kind.back ? 0.10 : 0.05) : 0, n);
@@ -2975,8 +3115,13 @@ function setTagKind(n) {
     const mF = new THREE.Mesh(gF, front), mB = new THREE.Mesh(gB, back), mS = new THREE.Mesh(gS, [hidden, side]);
     const group = new THREE.Group(); group.add(mF, mB, mS);
     for (const m of [mF, mB, mS]) { m.castShadow = kind.mat !== 'acrylic'; m.receiveShadow = true; if (kind.mat === 'acrylic') m.renderOrder = 2; }
-    tagCache[n] = { group, front: mF, meshes: [mF, mB, mS] };
-  }
+    return { group, front: mF, meshes: [mF, mB, mS] };
+}
+function setTagKind(n) {
+  if (!TAG || !TAG_KINDS[n] || !TAG.img) return;
+  const kind = TAG_KINDS[n]; TAG.kind = n;
+  if (TAG.group) { TAG.group.parent.remove(TAG.group); }
+  if (!tagCache[n]) tagCache[n] = tagBuild(kind, n);
   const c = tagCache[n];
   // верхний край — на прикусе: кончики губок на BITE ниже края листа
   c.group.position.set(0, -EYE_UP - Z_JAW + TAG.BITE, 0);
@@ -2990,6 +3135,223 @@ function setTagKind(n) {
   st.kw = SW_K[TAG.k + 3] ** 2 * kind.kw; st.sail = kind.sail;
   if (TAG.pick) document.querySelectorAll('#tagpick button').forEach(b => b.classList.toggle('on', +b.dataset.k === n));
 }
+// Листы ваз: настоящая бумага 12,5 × 17,5 см (высота точная, ширина — по краю самого листа на снимке),
+// лицо и изнанка — её снимки, рваный край — прозрачностью снимка. Верхний край в губках, как бумажка:
+// губки разведены на толщину листа, своего движения у листа нет — качается прищепка.
+if (VAZY) {
+  const T_V = 0.0003, H_V = 0.175, ldr = new THREE.TextureLoader();
+  [['vase-1', 0.7711], ['vase-2', 0.7197]].forEach(([name, asp], i) => {
+    const k = X_EMPTY.indexOf(X_VAZY[i]), W = H_V * asp;
+    const tex = f => { const t = ldr.load(`${name}-${f}.webp`); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+    const mk = (map, back) => { const g = new THREE.PlaneGeometry(W, H_V); g.translate(0, -H_V / 2, 0);
+      if (back) { g.rotateY(Math.PI); g.translate(0, 0, -T_V / 2); } else g.translate(0, 0, T_V / 2);
+      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map, roughness: 0.95, alphaTest: 0.5 }));
+      m.castShadow = m.receiveShadow = true; return m; };
+    const grp = new THREE.Group(); grp.add(mk(tex('face'), false), mk(tex('back'), true));
+    grp.position.set(0, -EYE_UP - Z_JAW + 0.004, 0); grp.name = name;
+    const add = () => {
+      if (!emptyState[k]) return setTimeout(add, 50);
+      empties[k].add(grp);
+      const st = emptyState[k], Lr = Math.hypot(Z_JAW, LIP_OV);
+      st.grip = Math.asin((T_V / 2) / Lr) + Math.atan(LIP_OV / Z_JAW);
+      st.kw = SW_K[k + 3] ** 2 * 0.62; st.sail = 2.2;     // бумага: ветер берёт её как парус
+    };
+    setTimeout(add, 0);
+  });
+}
+// «ДВЕ ВАЗЫ» ОТ КАСАНИЯ КАЧАЮТСЯ (Анныч, 12 окт вечером: «нажмёшь — она просто покачается в воздухе,
+// сворачивать не надо»). Касание толкает прищепку с листом от себя; три секунды после толчка воздух гасит
+// качание мягче (лист — парус, медленно успокаивается), потом — как прежде.
+function hitVase(e) {
+  if (!VAZY) return -1;
+  ray.setFromCamera(toNdc(e), cam);
+  const ms = []; for (const n of ['vase-1', 'vase-2']) { const g = scene.getObjectByName(n); if (g) ms.push(...g.children.filter(o => o.isMesh)); }
+  const h = ray.intersectObjects(ms, false)[0];
+  return !h ? -1 : h.object.parent.name === 'vase-1' ? 0 : 1;
+}
+function tapVase(i) {
+  const k = X_EMPTY.indexOf(X_VAZY[i]), st = emptyState[k], z = empties[k].matrixWorld.elements[14];
+  st.dsw += (cam.position.z > z ? 1 : -1) * 2.6; st.softT = clock + 3;
+  if (i === 0) butterflyGo();                              // бабочка сидит на левой — вспархивает
+}
+// ГОЛУБЯНКА НА ЛЕВОЙ ВАЗЕ (Анныч, 12 окт вечером: «пусть сидит на левой вазе сверху, спокойно открывает
+// крылышки; нажмут на работу — взлетит, улетит. Голубенькая наша бабочка»). Голубянка икар: размах 3 см,
+// сверху крылья сине-сиреневые с тонкой тёмной каймой и белой бахромой; снизу серо-бежевые, в чёрных
+// точках с белым ободком, по краю заднего крыла — оранжевые пятнышки. Сидя складывает крылья над спиной
+// (видна изнанка), греясь — раскрывает. Сидит на верхнем крае листа, у правого угла, тельцем вдоль края.
+let butterflyStep = () => {}, butterflyGo = () => {};
+// 13 окт, её слово: «бабочка плохая, убери» — будет бабочка Кодекса; ?babochka=1 вернёт эту
+// 13 окт: бабочка — модель Кодекса (сад/бабочка/), прежняя — ?babochka=old. Сидит, раскрывает крылья, вспархивает —
+// одна и та же жизнь (butterflyLive) для обеих; модель отличается только тем, как ставятся крылья (placeWings(φ):
+// φ = 0 — сложены над спиной, π/2 — раскрыты плашмя).
+function butterflyLive(bf, placeWings) {
+  const B = { seat: null, fly: null, t: 0, phase: 0, open: 0.1, want: 0.1, hold: 2 };
+  bf.traverse(o => o.castShadow = true);
+  const seat = () => {                                     // на верхний край левой вазы, у правого угла
+    const v = scene.getObjectByName('vase-1'); if (!v) return setTimeout(seat, 100);
+    const W = 0.175 * 0.7711;
+    v.add(bf); bf.position.set(W * 0.3, 0.0016, 0.0004); bf.rotation.set(0.3, 0.25, 0);   // чуть подалась к зрителю: раскрывшись, дальнее крыло показывает ему голубой верх
+    B.seat = v; placeWings(B.open);
+  };
+  seat();
+  butterflyGo = () => {
+    if (!B.seat || B.fly) return;
+    bf.updateMatrixWorld(true); const p = new THREE.Vector3(), q = new THREE.Quaternion(); bf.matrixWorld.decompose(p, q, new THREE.Vector3());
+    scene.attach(bf);
+    const away = new THREE.Vector3(Math.random() < 0.5 ? -1 : 1, 0, 0);
+    B.fly = { t: 0, p0: p.clone(), v: new THREE.Vector3(away.x * 0.45, 0.3, 0.3), ph: Math.random() * 6, bob: 0 };
+  };
+  butterflyStep = dt => {
+    B.t += dt;
+    if (!B.seat) return;
+    if (!B.fly) {                                          // сидит: подолгу сложена, изредка раскрывает и держит
+      B.hold -= dt;
+      if (B.hold < 0) { const opening = B.want < 0.5; B.want = opening ? 0.9 + Math.random() * 0.45 : 0.06 + Math.random() * 0.12;
+                        B.hold = opening ? 1.5 + Math.random() * 2.5 : 2 + Math.random() * 4; }
+      B.open += (B.want - B.open) * (1 - Math.exp(-dt * 2.2));
+      placeWings(B.open + 0.03 * Math.sin(B.t * 1.7));
+      return;
+    }
+    const F = B.fly; F.t += dt;                             // летит: машет часто, уходит вверх и вбок, петляя
+    // 13 окт, её слово: «не вижу, как она улетает… вверх просто, без махания». Взмах был 38–76° — почти не видно.
+    // Теперь полный: от сложенных над спиной (≈80° вверх) до чуть ниже плеч (≈−20°), 8 раз в секунду;
+    // на каждом ударе вниз её подбрасывает, между ударами — проседает (полёт голубянки — «прыжками»).
+    const beat = Math.sin(F.t * 2 * Math.PI * 8);
+    placeWings(1.05 + 0.9 * beat);
+    F.bob = 0.004 * Math.max(0, -Math.cos(F.t * 2 * Math.PI * 8)) - 0.002;
+    F.v.x += Math.sin(F.t * 3.1 + F.ph) * 0.9 * dt; F.v.y += (Math.sin(F.t * 4.7 + F.ph * 2) * 0.8 + 0.1) * dt; F.v.z += Math.cos(F.t * 2.3 + F.ph) * 0.7 * dt;
+    bf.position.addScaledVector(F.v, dt); bf.position.y += F.bob - (F.bobPrev ?? F.bob); F.bobPrev = F.bob;
+    const look = bf.position.clone().add(F.v); bf.lookAt(look); bf.rotateY(-Math.PI / 2);
+    if (F.t > 9) { bf.visible = false; B.seat = null; }
+  };
+  window.__babochka = B;
+}
+if (VAZY && params.get('babochka') === 'old') {
+  const wingTex = under => {
+    const N = 256, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d');
+    // крыло в своих координатах: x — вдоль тельца (голова +), y — от тельца наружу; холст 24 × 24 мм
+    const X = x => (x + 0.013) / 0.024 * N, Y = y => N - y / 0.024 * N;
+    const fore = [[0.0035, 0], [0.006, 0.006], [0.0075, 0.012], [0.0068, 0.0168], [0.0045, 0.0172], [0.0005, 0.0145], [-0.003, 0.0105], [-0.0035, 0.0005]];
+    const hind = [[0.0005, 0], [-0.0005, 0.007], [-0.003, 0.0105], [-0.007, 0.011], [-0.0105, 0.0085], [-0.0115, 0.0045], [-0.009, 0.0008], [-0.004, 0]];
+    const path = pts => { g.beginPath(); g.moveTo(X(pts[0][0]), Y(pts[0][1]));
+      for (let i = 1; i <= pts.length; i++) { const a = pts[i - 1], b = pts[i % pts.length]; g.quadraticCurveTo(X(a[0]), Y(a[1]), X((a[0] + b[0]) / 2), Y((a[1] + b[1]) / 2)); } g.closePath(); };
+    for (const [pts, isHind] of [[hind, true], [fore, false]]) {
+      path(pts); g.save(); g.clip();
+      if (!under) {                                        // верх: голубой к основанию сиреневее, по краю тёмная кайма
+        const gr = g.createRadialGradient(X(0), Y(0), 2, X(0), Y(0), N * 0.75);
+        gr.addColorStop(0, '#5f6fc0'); gr.addColorStop(0.35, '#7d98e6'); gr.addColorStop(0.8, '#8fb0f2'); g.fillStyle = gr; g.fillRect(0, 0, N, N);
+        g.lineWidth = 7; g.strokeStyle = '#2e2f3a'; path(pts); g.stroke();
+        g.lineWidth = 3; g.strokeStyle = '#f4f4f0'; path(pts); g.stroke();
+        g.strokeStyle = 'rgba(40,50,90,0.35)'; g.lineWidth = 1;
+        for (let a = 0; a < 6; a++) { g.beginPath(); g.moveTo(X(0), Y(0.0005)); const p = pts[2 + (a % (pts.length - 3))]; g.lineTo(X(p[0] * 0.9), Y(p[1] * 0.9)); g.stroke(); }
+      } else {                                             // изнанка: бежево-серая, точки с белым ободком, оранжевая кайма
+        g.fillStyle = isHind ? '#bfb3a2' : '#cdc4b6'; g.fillRect(0, 0, N, N);
+        const dots = isHind ? [[-0.004, 0.004], [-0.006, 0.0075], [-0.0085, 0.006], [-0.002, 0.0075], [-0.0075, 0.0035]] : [[0.002, 0.0065], [0.004, 0.0095], [0.0035, 0.012], [0.0005, 0.010], [0.0025, 0.004]];
+        for (const [x, y] of dots) { g.fillStyle = '#fbfaf6'; g.beginPath(); g.arc(X(x), Y(y), 5.5, 0, 7); g.fill(); g.fillStyle = '#1d1c1a'; g.beginPath(); g.arc(X(x), Y(y), 3.2, 0, 7); g.fill(); }
+        if (isHind) for (let q = 0; q < 5; q++) { const t = 0.15 + q * 0.17, a = pts[3 + Math.floor(t * 3)], x = a[0] * 0.86, y = a[1] * 0.86;
+          g.fillStyle = '#e48a3a'; g.beginPath(); g.ellipse(X(x), Y(y), 5, 3.5, 0, 0, 7); g.fill(); }
+        g.lineWidth = 3; g.strokeStyle = '#f2efe8'; path(pts); g.stroke();
+      }
+      g.restore();
+    }
+    const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  };
+  const upT = wingTex(false), unT = wingTex(true);
+  const wingGeo = new THREE.PlaneGeometry(0.024, 0.024); wingGeo.translate(-0.001, 0.012, 0);   // петля крыла — по оси x
+  // Сложенные крылья смотрят друг на друга ВЕРХОМ, наружу — изнанкой. Левое раскрывается к +z: его лицо (+z)
+  // — изнанка, оборот — верх. Правое — зеркало левого по z (three.js сам меняет лицо и оборот).
+  const wing = sgn => {
+    const w = new THREE.Group();
+    const mU = new THREE.Mesh(wingGeo, new THREE.MeshStandardMaterial({ map: upT, alphaTest: 0.5, roughness: 0.5, side: THREE.BackSide }));
+    const mD = new THREE.Mesh(wingGeo, new THREE.MeshStandardMaterial({ map: unT, alphaTest: 0.5, roughness: 0.8, side: THREE.FrontSide }));
+    for (const m of [mU, mD]) { m.castShadow = true; w.add(m); }
+    w.scale.z = sgn; return w;
+  };
+  const bf = new THREE.Group(); bf.name = 'бабочка';
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.0011, 0.011, 4, 8), new THREE.MeshStandardMaterial({ color: 0x3b3f52, roughness: 0.9 }));
+  body.rotation.z = Math.PI / 2; bf.add(body);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.0013, 10, 8), body.material); head.position.x = 0.0068; bf.add(head);
+  const antM = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
+  for (const sg of [-1, 1]) {                              // усики с булавами
+    const a = new THREE.Mesh(new THREE.CylinderGeometry(0.00012, 0.00012, 0.008, 4), antM); a.position.set(0.0095, 0.0022, sg * 0.0012);
+    a.rotation.set(sg * 0.28, 0, -1.05); bf.add(a);
+    const c = new THREE.Mesh(new THREE.SphereGeometry(0.0003, 6, 5), antM); c.position.set(0.0128, 0.0042, sg * 0.0024); bf.add(c);
+  }
+  // крылья: ось петли — x (вдоль тельца); угол φ от вертикали: 0 — сложены над спиной, π/2 — плашмя
+  const wl = wing(1), wr = wing(-1); bf.add(wl, wr);
+  const placeWings = phi => { wl.rotation.x = phi; wr.rotation.x = -phi; };
+  butterflyLive(bf, placeWings);
+}
+// ГОЛУБЯНКА КОДЕКСА (13 окт; её слово: «бабочка плохая… Кодекс сделал, не доделал — доделай»). У Кодекса —
+// модель с пушком, бахромой, глазками на изнанке, 132 тыс. треугольников; облегчена (сад/бабочка/облегчить.py,
+// упаковать.py → бабочка.bin.gz 0,9 МБ + 4 картинки крыльев). Оси Кодекса: голова к −z, верх +y; петли крыльев
+// поворачиваются вокруг z (у Кодекса: угол 0° — плашмя, 72° — подняты). Здесь бабочка поворачивается головой к +x,
+// как прежняя, и живёт той же жизнью.
+if (VAZY && !['0', 'old'].includes(params.get('babochka'))) (async () => {
+  const { fetchPeony } = await import('./пион-кодекс.js');               // тот же распаковщик, что у куста
+  const buf = await fetchPeony('./бабочка.txt'), hl = new DataView(buf).getUint32(0, true);
+  const head = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, hl)));
+  const texs = {}, tl = new THREE.TextureLoader();
+  const tex = f => texs[f] ||= tl.loadAsync('./' + f).then(t => { t.flipY = false; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t; });
+  const bf = new THREE.Group(); bf.name = 'бабочка';
+  const body = new THREE.Group(); body.rotation.y = -Math.PI / 2; bf.add(body);   // голова −z → +x
+  const hinge = {};
+  for (const [k, p] of Object.entries(head.hinges)) { const h = new THREE.Group(); h.position.set(...p); body.add(h); hinge[k] = h; }
+  let off = 4 + hl;
+  const take = (T, n, bytes) => { const a = new T(buf, off, n); off += bytes; return a; };
+  for (const g of head.groups) {
+    const [bp, bn, bu, bi] = g.bytes;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(take(Float32Array, g.nV * 3, bp).slice(), 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(take(Int8Array, g.nV * 3, bn).slice(), 3, true));
+    geo.setAttribute('uv', new THREE.BufferAttribute(take(Float32Array, g.nV * 2, bu).slice(), 2));
+    geo.setIndex(new THREE.BufferAttribute(take(Uint32Array, g.nI, bi).slice(), 1));
+    const c = g.color, wingSide = /scales/.test(g.name) && g.tex;   // верх и изнанка крыла — две поверхности в 0,03 мм: каждая видна только со своей стороны
+    const m = new THREE.MeshStandardMaterial({ color: new THREE.Color(c[0], c[1], c[2]), roughness: g.rough, metalness: g.metal,
+      map: g.tex ? await tex(g.tex) : null, side: wingSide ? THREE.FrontSide : THREE.DoubleSide });
+    const mesh = new THREE.Mesh(geo, m); mesh.castShadow = true;
+    (g.part === 'тело' ? body : hinge[g.part]).add(mesh);
+  }
+  const placeWings = phi => {                                   // φ: 0 — сложены над спиной, π/2 — плашмя
+    const a = Math.PI / 2 - phi;
+    for (const [k, h] of Object.entries(hinge)) h.rotation.z = (k[0] === 'R' ? 1 : -1) * a * (k.endsWith('hind') ? 0.94 : 1);
+  };
+  butterflyLive(bf, placeWings);
+})().catch(e => console.warn('бабочка:', e)).finally(() => bfDone());
+else bfDone();
+// ТАБЛИЧКА «ДВУХ ВАЗ» (Анныч, 12 окт вечером: «для ваз тоже такую же табличку… повесь её на такую же
+// прищепку»). Та же прозрачная, тот же тёмно-серый оттиск, та же кнопка «КУПИТЬ»; текст — по works.json
+// и неделе продаж (цена 360 € за пару — docs/продажа/ГОТОВО.md). Надпись рисуется тут же её шрифтом,
+// по сетке надписи «Первого моря». В шрифте нет цифр 1, 3, 6 — их рисуют двойники из её же шрифта:
+// I, З, Б (проверено на глаз: «I7,5», «ЗБ0» читаются как цифры).
+let TAGV = null;
+const tagVReady = !(TAG && VAZY) ? Promise.resolve() : tagReady.then(() => {
+  const D = t => t.replace(/1/g, 'I').replace(/3/g, 'З').replace(/6/g, 'Б');
+  const N = 1120, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, N, N); g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
+  const put = (t, px, x, y, al, tr) => { g.font = `${px}px AnnaBortnikova`; t = D(t);
+    const gl = ch => ch === '’' ? ',' : ch, dy = ch => ch === '’' ? -0.6 * px : 0;
+    let w = -tr; for (const ch of t) w += g.measureText(gl(ch)).width + tr;
+    let xx = al === 'c' ? x - w / 2 : al === 'r' ? x - w : x; for (const ch of t) { g.fillText(gl(ch), xx, y + dy(ch)); xx += g.measureText(gl(ch)).width + tr; } };
+  put('«ДВЕ ВАЗЫ»', 82, N / 2, 312, 'c', 5);
+  // 13 окт, её слово: автор — Анна д’Арлет (как в её почте, с французским апострофом). Строчных д, р, л, е, т
+  // и апострофа в её шрифте нет — имя прописными, апостроф — её же запятая, поднятая к верху букв
+  put(params.get('avtor') ?? 'АННА Д’АРЛЕТ', 58, N / 2, 446, 'c', 3);
+  // строки «подпись — значение»: кегль подбирается так, чтобы между ними оставалось не меньше 40 точек
+  const wid = (t, px, tr) => { g.font = `${px}px AnnaBortnikova`; let w = -tr; for (const ch of D(t)) w += g.measureText(ch).width + tr; return w; };
+  let fs = 46; while (fs > 28 && Math.max(wid('РАЗМЕР:', fs, 4) + wid('12,5 × 17,5 см', fs, 4), wid('МАТЕРИАЛЫ:', fs, 4) + wid('БУМАГА,', fs, 4)) > 918 - 205 - 40) fs -= 1;
+  put('РАЗМЕР:', fs, 205, 598, 'l', 4); put('12,5 × 17,5 см', fs, 918, 598, 'r', 4);
+  put('ДВА ЛИСТА', fs, 918, 598 + fs * 1.55, 'r', 4);
+  put('МАТЕРИАЛЫ:', fs, 205, 598 + fs * 3.4, 'l', 4); put('БУМАГА,', fs, 918, 598 + fs * 3.4, 'r', 4); put('АКВАРЕЛЬ', fs, 918, 598 + fs * 4.95, 'r', 4);
+  const save = [TAG.img.text, TAG.price], kind = TAG_KINDS[TAG.kind];
+  TAG.img.text = cv; TAG.price = D('360 €');
+  const c = tagBuild(kind, 50 + TAG.kind); [TAG.img.text, TAG.price] = save;
+  const k = X_EMPTY.indexOf(X_TAG_V); c.k = k;
+  c.group.position.set(0, -EYE_UP - Z_JAW + TAG.BITE, 0); empties[k].add(c.group);
+  const st = emptyState[k], Lr = Math.hypot(Z_JAW, LIP_OV);
+  st.grip = Math.asin((kind.t / 2) / Lr) + Math.atan(LIP_OV / Z_JAW); st.kw = SW_K[k + 3] ** 2 * kind.kw; st.sail = kind.sail;
+  TAGV = c; window.__tagV = c;
+});
 // Пока выбираем — пять кнопок внизу; касание — вариант и камера на бумажку.
 function tagPicker() {
   const bar = document.createElement('div'); bar.id = 'tagpick';
@@ -3105,9 +3467,10 @@ function tagStep(dt) {
 function hitTag(e) {
   if (!TAG || !TAG.group) return false;
   ray.setFromCamera(toNdc(e), cam);
-  const h = ray.intersectObjects(TAG.meshes, false)[0];
+  const h = ray.intersectObjects([...TAG.meshes, ...(TAGV ? TAGV.meshes : [])], false)[0];
   if (!h) return false;
-  if (h.object !== TAG.front || !h.uv) return 'card';
+  tagHitK = TAGV && TAGV.meshes.includes(h.object) ? TAGV.k : TAG.k;     // какую из двух табличек тронули
+  if ((h.object !== TAG.front && !(TAGV && h.object === TAGV.front)) || !h.uv) return 'card';
   const dx = (h.uv.x - TAG.btn.u) * TAG.W, dy = (h.uv.y - TAG.btn.v) * TAG.H;
   return Math.hypot(dx, dy) < TAG.btn.r * 1.8 ? 'btn' : 'card';
 }
@@ -3117,7 +3480,7 @@ function openDirect() {                                 // глаз — кноп
 }
 for (const [k, p] of Object.entries({ readyTex, clampReady, domReady, columnsReady, tagReady })) p.then(() => tm(k));
 tm('модуль прочитан');
-const ready = Promise.all([readyTex, clampReady, domReady, columnsReady, tagReady]);    // страница ждёт и картину, и зажим
+const ready = Promise.all([readyTex, clampReady, domReady, columnsReady, tagReady, tagVReady]);    // страница ждёт и картину, и зажим
 
 // ---------- Механика: по законам ----------
 // Брусок висит лёжа на двух зажимах, за свободный край крайней палочки. Касание отпускает его,
@@ -4954,13 +5317,23 @@ function liveBoxes() {
   paintBox.makeEmpty(); for (const s of strips) paintBox.expandByObject(s);
   if (TAG && TAG.group) tagBox.setFromObject(TAG.group); else tagBox.makeEmpty();
 }
+function boxSd(b, p) {                                  // до коробки, м; внутри — со знаком минус
+  if (!b.containsPoint(p)) return b.distanceToPoint(p);
+  return -Math.min(p.x - b.min.x, b.max.x - p.x, p.y - b.min.y, b.max.y - p.y, p.z - b.min.z, b.max.z - p.z);
+}
 function clearance(x, y, z) {                           // сколько ещё можно до ближайшего твёрдого, м
   _q.set(x, y, z);
   // стены, нитка, прищепки, бумажка больше не держат (10 окт поздно): камера о них спотыкалась и
   // соскальзывала — «тормозит у нитки и сзади». Твёрдая только картина — сквозь неё не проходим.
   let c = boxClear(x, y, z);
   if (!paintBox.isEmpty()) c = Math.min(c, paintBox.distanceToPoint(_q) - PAINT_GAP);
-  if (!lampBox.isEmpty()) c = Math.min(c, lampBox.distanceToPoint(_q));   // и сквозь банку не проходим
+  if (!lampBox.isEmpty()) c = Math.min(c, boxSd(lampBox, _q));   // и сквозь банку не проходим
+  // сквозь куст и колышки тоже (её слово 12 окт: «куст пробираться нам ни к чему»)
+  // 13 окт: Box3.distanceToPoint внутри коробки даёт 0, а не минус — камера «упиралась» только снаружи и,
+  // раз попав внутрь, ходила сквозь куст свободно (её слово: «не надо, чтобы через куст проходил человек»).
+  // Теперь внутри — минус, а куст для камеры — купол по его очертанию, а не коробка.
+  if (bushDome) c = Math.min(c, bushDome(_q));
+  for (const b of stakeBoxes) c = Math.min(c, boxSd(b, _q));
   return c;
 }
 function wallClear(x, y, z) {                           // только предел простора (дом + 5 м) — стены не держат
@@ -5213,8 +5586,9 @@ function cancelDown() {
   down = null;
 }
 // Тычок по бумажке: она колышется вместе со своей прищепкой — от пальца, прочь от смотрящего.
+let tagHitK = -1;
 function pokeTag() {
-  const st = emptyState[TAG.k], z = empties[TAG.k].matrixWorld.elements[14];
+  const k = tagHitK >= 0 ? tagHitK : TAG.k, st = emptyState[k], z = empties[k].matrixWorld.elements[14];
   st.dsw += (cam.position.z > z ? 1 : -1) * 1.1;
 }
 // Правая и средняя кнопки мыши — не наши (Анныч, 10 окт: «правая кнопка — заедание»): нажатие
@@ -5230,6 +5604,8 @@ canvas.addEventListener('pointerdown', e => {
   const tagHit = hitTag(e), base = { id: e.pointerId, x: e.clientX, y: e.clientY, az: view.azT, el: view.elT, moved: false, look: true };
   if (tagHit === 'btn') { TAG.pressT = clock; down = { ...base, tag: true }; return; }   // глаз-кнопка
   if (tagHit === 'card') { down = { ...base, card: true }; return; }                     // бумажка: тычок качает её, вести — обход
+  { const v = hitVase(e); if (v >= 0) { down = { ...base, card: true, vase: v }; return; } }   // вазы: тычок качает, вести — обход
+  if (peonyHit(e)) { down = { id: e.pointerId, bush: true, moved: true }; return; }            // куст: ведёшь — клонится
   if (nearTab(e) >= 0) { unbelt(); down = { tab: true }; return; }    // потянули язычок — ремешки разошлись
   // НИТКУ РУКОЙ НЕ ТРОГАЮТ (Анныч, 2 октября). Зажимы и прищепки пальцу больше не отвечают:
   // нажатие раскрывало зажим, нагрузка перекидывалась на соседний, край кренился — и зажимы
@@ -5292,6 +5668,7 @@ canvas.addEventListener('pointermove', e => {
     down.px = e.clientX; down.py = e.clientY;
   } else if (down && down.clip !== undefined) {
     pointerNear = clipPress = down.clip;
+  } else if (down && down.bush) {                           // по кусту — его клонит обработчик куста, вид стоит
   } else if (down) {
     const dx = e.clientX - down.x, dy = e.clientY - down.y;
     if (Math.hypot(dx, dy) > (ZONA && e.pointerType !== 'mouse' ? 10 : tapSlop(e))) down.moved = true;   // в доме обход трогается раньше
@@ -5316,10 +5693,12 @@ canvas.addEventListener('pointermove', e => {
 function endPointer(e) {
   if (!down || (e && down.id !== undefined && down.id !== e.pointerId)) return;
   if (down.tag) { TAG.pressT = -1; if (!down.moved) openDirect(); }   // кнопка: отпустили на месте — Директ
+  else if (down.vase !== undefined) { if (!down.moved) tapVase(down.vase); }
   else if (down.card) { if (!down.moved) { pokeTag(); if (ZONA && e) zoneTap(e, 'tag'); } }   // бумажка: только качнуть, работу не трогать; дважды — подойти
   else if (down.grab) { held = false; grab = null; if (!down.moved) workTap(e); }
   else if (down.hgrab) { if (!down.moved) workTap(e); else if (!down.dead) letScroll(flickAim(down, e)); }
   else if (down.clip !== undefined) { pointerNear = -1; clipPress = -1; }
+  else if (down.bush) {}
   else if (!down.moved && down.onWork !== false) workTap(e);   // касание без движения — по работе; на сайте по пустому ничего
   down = null;
 }
@@ -5592,7 +5971,7 @@ function tick(dt, now) {
   { const p = cam.position; INSIDE.value = p.x > -1.73 && p.x < 3.83 && p.y > -1.63 && p.z > -1.65 ? 1 : 0; }   // в зале или перед разрезом
   const sub = Math.max(1, Math.ceil(dt * 480));
   for (let k = 0; k < sub; k++) step((reduceMotion ? 2 : 1) * dt / sub);
-  beltStep(); poseDt = dt; pose(); reflexStep(); reflStep(); placeCamera(dt); placeLabel(); placeEyeHint(now); lampStep(dt);
+  beltStep(); poseDt = dt; pose(); reflexStep(); reflStep(); placeCamera(dt); placeLabel(); placeEyeHint(now); lampStep(dt); peonyStep(dt); butterflyStep(dt);
 }
 
 // ---------- Щуп «сквозь себя»: ничто не режет работу ----------
@@ -6241,7 +6620,7 @@ async function capture() {
 }
 
 ready.then(() => {
-  tm('всё загружено');
+  tm('всё загружено'); veilOff().catch(() => document.getElementById('veil')?.remove());
   if (params.has('still')) { still().catch(e => { document.title = 'ОШИБКА ' + e.message; console.error(e); }); return; }
   if (CAPTURE && LOOP) { captureLoop().catch(e => { document.title = 'ОШИБКА ' + e.message; console.error(e); }); return; }
   if (LOOP) { loopInit(); resize(); pose(); placeCamera(10); requestAnimationFrame(t => { last = t; frame(t); }); return; }
@@ -6252,5 +6631,3 @@ ready.then(() => {
   window.__frame = frame;                         // проверка в скрытой вкладке: кадры вручную (rAF там спит)
 });
 </script>
-
-</body></html>
