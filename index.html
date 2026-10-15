@@ -77,6 +77,17 @@
      теперь слово на маленькой белой плашке, без ореола, на пиксель крупнее */
   #eyehint span { font: 9px/1 'AnnaBortnikova', serif; letter-spacing: .14em; color: var(--ink); white-space: nowrap;
                   background: rgba(255,255,255,.92); padding: 3px 6px 2px; border-radius: 8px; transition: opacity .25s; }
+  /* «33 СЛЕЗЫ»: тот же глаз (15 окт ночью, её слово: «кнопочку на неё, как на первой, — подсказку про разворачивание»):
+     у низа рулона, тянет вниз — рулон разворачивается сам на ладонь и сворачивается обратно */
+  #rollhint { position: fixed; left: 0; top: 0; display: flex; flex-direction: row; align-items: center; gap: 7px;
+              opacity: 0; transition: opacity .9s ease; pointer-events: none; will-change: transform; }
+  #rollhint.on { opacity: 1; }
+  #rollhint i { --d: 17px; width: var(--d); height: var(--d); box-sizing: border-box; border-radius: 50%; background: #fff; flex: none;
+                border: 1px solid #dbdbdb; display: grid; place-items: center; box-shadow: 0 1px 4px rgba(60,50,40,.12); }
+  #rollhint img { height: calc(var(--d) * .62); width: auto; display: block; }
+  #rollhint span { font: 9px/1 'AnnaBortnikova', serif; letter-spacing: .14em; color: var(--ink); white-space: nowrap;
+                   background: rgba(255,255,255,.92); padding: 3px 6px 2px; border-radius: 8px; }
+  @media (min-width: 700px) { #rollhint span { font-size: 10px; } }
   /* РУКА (Анныч, 10 окт поздно вечером: «рука, которая обычно появляется: можно нажать — и тогда
      загорается»). Обычная рука-указатель, кончик пальца — в кнопке; один раз, когда человек подошёл. */
   #taphand { position: fixed; left: 0; top: 0; opacity: 0; pointer-events: none; will-change: transform, opacity;
@@ -89,6 +100,7 @@
 <div id="hint" class="smallcaps"><b id="hint1">Коснитесь холста</b><br>Ведите по экрану, чтобы осмотреть · + − приблизить</div>
 <div id="label" class="smallcaps" hidden>Первое море<br>2026<br><span class="soft">Акварель, бумага</span></div>
 <div id="eyehint" aria-hidden="true"><i><img src="бирка/глаз.png" alt=""></i><span class="smallcaps" id="eyehint1"></span></div>
+<div id="rollhint" aria-hidden="true"><i><img src="бирка/глаз.png" alt=""></i><span class="smallcaps">РАЗВЕРНУТЬ</span></div>
 <div id="tapmenu" aria-hidden="true"><i><img src="бирка/глаз.png" alt=""></i><span class="smallcaps" id="tapmenu1"></span></div>
 <div id="taphand" aria-hidden="true"><svg viewBox="0 0 22 26" width="22" height="26"><path d="M8 1.5c1.1 0 2 .9 2 2V11l.4-.1c1.1-.2 2.1.4 2.3 1.4l.2-.1c1.1-.3 2.2.3 2.4 1.3l.3-.1c1.1-.2 2.1.5 2.2 1.6l.3 3.2c.3 3-1.6 5.9-4.8 5.9h-2.7c-1.9 0-3.6-1-4.6-2.6L2.7 18c-.6-1-.3-2.2.6-2.8.9-.6 2.1-.4 2.8.4l-.1.8V3.5c0-1.1.9-2 2-2z" fill="#fff" stroke="#26231f" stroke-width="1.1" stroke-linejoin="round"/><path d="M10 11v4.2M12.9 12.5v3.1M15.5 13.6v2.4" stroke="#26231f" stroke-width="1" stroke-linecap="round" fill="none"/></svg></div>
 <button id="front" class="smallcaps" type="button" hidden>Вид спереди</button>
@@ -328,12 +340,15 @@ const SITE = params.has('site') || window.SITE_MODE === true;   // сайт.html
 // ПОЯВЛЕНИЕ РАЗОМ (её слово 13 окт: «сначала работа, потом куст — надо, чтобы всё вместе… маленькими пикселями;
 // у Ника были огромные пиксели, долго»). Пока не готово всё — работа, вазы, куст, бабочка — экран закрыт цветом
 // воздуха; потом покрывало рассыпается пикселями по 3 точки за 0,7 с (veilOff). Не на сайте покрывала нет.
-let peonyDone = () => {}, bfDone = () => {};
-const veilWait = [new Promise(r => peonyDone = r), new Promise(r => bfDone = r)];
+let peonyDone = () => {}, bfDone = () => {}, ehinDone = () => {}, pvDone = () => {}, verbDone = () => {};
+const veilWait = [new Promise(r => peonyDone = r), new Promise(r => bfDone = r), new Promise(r => ehinDone = r), new Promise(r => pvDone = r), new Promise(r => verbDone = r)];
 if (!SITE) document.getElementById('veil')?.remove();
 async function veilOff() {
   const v = document.getElementById('veil'); if (!v) return;
   await Promise.race([Promise.all(veilWait), new Promise(r => setTimeout(r, 20000))]);
+  // все шейдеры — заранее и параллельно (KHR_parallel_shader_compile), пока покрывало ещё лежит: иначе первый кадр
+  // после снятия собирает их разом и сцена дёргается (15 окт, «как правильно, по-современному»)
+  try { await Promise.race([renderer.compileAsync(scene, cam), new Promise(r => setTimeout(r, 4000))]); } catch (e) {}
   await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));   // два кадра: всё уже нарисовано
   const B = 3, w = Math.ceil(innerWidth / B), h = Math.ceil(innerHeight / B), g = v.getContext('2d');
   if (!w || !h || !g) return v.remove();                         // окно свёрнуто — просто снять
@@ -687,22 +702,50 @@ async function houseLive(b64) {
     // плоскость мы не можем забраться»). Прежде низ простора стоял на 67 см ПОД землёй (−2,3), а стены
     // убранного зала держали камеру внутри несуществующих стен. Теперь глаз не ниже 75 см — присел на корточки.
     ZBOX.y0 = fy + 0.75; NOHOUSE = true;
-    // КОЛЫШКИ ВМЕСТО БАЛОК (Анныч, 12 окт вечером: «балки убери, гвозди оставь… гвоздь в воздухе странно —
-    // может, просто белые тонкие бруски, квадратные, воткнутые в землю, в них гвоздики»). Это «может быть» —
-    // показываю дёшево: брусок 35 × 35 мм, белый, от земли до 6 см над гвоздём; грань — там, где была грань
-    // стойки, гвоздь и витки нитки не сдвинуты ни на миллиметр. ?kol=0 — без них, гвозди в воздухе.
+    // КОЛЫШКИ ВМЕСТО БАЛОК (Анныч, 12 окт вечером: «балки убери, гвозди оставь… может, просто белые тонкие бруски»).
+    // 15 окт ночью, её слово: «я сомневаюсь в наших белых палках… ты делал брёвнышки — что если их вернуть, но тонкого
+    // диаметра, прямо как палки, но круглые»; «мы делали белые — их и уменьши». Брёвнышко Ø 56 мм, белое, как
+    // прежние столбики (столбик/столбики.js): дерево проступает сквозь краску волокном и парой трещин, тени тёплые;
+    // сечение чуть неровное, верх — спил с кольцами. Картинок не грузит: волокно рисуется на странице. Гвоздь и витки
+    // нитки не сдвинуты: бок брёвнышка — там, где была грань бруска. ?kol=0 — без них, ?kol=box — прежние бруски.
     if (params.get('kol') !== '0') {
-      const S = 0.035, wood = new THREE.MeshStandardMaterial({ color: 0xf3f1ec, roughness: 0.85 });
+      // 15 окт, её слово: «ещё тоньше… и без текстуры — ты натянул одинаковую текстуру, это очень заметно; просто
+      // белые брёвна, в диаметре уже». Ø 56 → 32 мм, гладкая белая краска; живое сечение и тёплые тени остались.
+      const R = +(params.get('kolr') ?? 16) / 1000, box = params.get('kol') === 'box';
+      const warm = m => { m.onBeforeCompile = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <dithering_fragment>', `#include <dithering_fragment>
+        { float L = dot(gl_FragColor.rgb, vec3(0.30, 0.59, 0.11)); float sh = 1. - smoothstep(0.42, 0.93, L);
+          vec3 umber = vec3(0.80, 0.62, 0.47); umber /= dot(umber, vec3(0.30, 0.59, 0.11));
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, min(vec3(1.), (L + (1. - L) * 0.2 * sh) * umber), 0.62 * sh); }`); }; return m; };
+      const wood = warm(new THREE.MeshStandardMaterial({ color: 0xeeebe6, roughness: 0.9 })), cut = wood;
       for (const [k, P] of POSTS.entries()) {
         const sg = k ? -1 : 1, face = k ? P.x0 : P.x1, xe = k ? ROPE_X1 : ROPE_X0, ny = ropeY(xe) - 0.005 - ROPE_R;   // ось гвоздя: под шляпкой (HEAD_R 5 мм) и шпагатом
-        const top = ny + 0.06, b = new THREE.Mesh(new THREE.BoxGeometry(S, top - fy, S), wood);
-        b.position.set(face - sg * S / 2, (top + fy) / 2, -T / 2); b.castShadow = b.receiveShadow = true; b.name = 'колышек';
+        const top = ny + 0.06, H = top - fy;
+        let b;
+        if (box) b = new THREE.Mesh(new THREE.BoxGeometry(0.035, H, 0.035), wood);
+        else {
+          const g = new THREE.CylinderGeometry(R, R * 1.04, H, 24, 12, false), p = g.attributes.position;
+          for (let i = 0; i < p.count; i++) {                  // живое сечение: чуть овал, лёгкие наплывы по высоте
+            const x = p.getX(i), z = p.getZ(i), y = p.getY(i), r = Math.hypot(x, z); if (r < 1e-4) continue;
+            const a = Math.atan2(z, x), f = 1 + 0.025 * Math.cos(2 * a + 0.7) + 0.01 * Math.sin(3 * a + y * 4 + k) + 0.008 * Math.sin(y * 9 + k * 2);
+            p.setXYZ(i, x * f, y, z * f);
+          }
+          g.computeVertexNormals();
+          b = new THREE.Mesh(g, [wood, cut, cut]);
+        }
+        const off = box ? 0.035 / 2 : R;
+        b.position.set(face - sg * off, (top + fy) / 2, -T / 2); b.castShadow = b.receiveShadow = true; b.name = 'колышек';
         scene.add(b); stakeBoxes.push(new THREE.Box3().setFromObject(b).expandByScalar(0.06));
       }
     }
   }
   if (SITE && params.get('kust') !== '0') peonyBush(hEnv).catch(e => console.warn('куст:', e)).finally(() => peonyDone());
   else peonyDone();
+  { let floor = scene.getObjectByName('земля')?.position.y ?? 0; const bb = new THREE.Box3();
+    for (const n in houseSets) houseSets[n].traverse(o => { if (o.isMesh && (o.name === 'пол' || o.name === 'камень')) { bb.setFromObject(o); floor = bb.max.y; } });
+    if (SITE && params.get('ehin') !== '0') echinaceaBed(hEnv, floor).catch(e => { console.warn('эхинацея:', e); pvDone(); }).finally(() => ehinDone());
+    else { ehinDone(); pvDone(); }
+    if (SITE && params.get('verb') !== '0') verbenaBed(hEnv, floor).catch(e => console.warn('вербена:', e)).finally(() => verbDone());
+    else verbDone(); }
   if (!SITE || params.has('nastr')) housePanel();   // на сайте — только по тайной ссылке ?nastr
   DOF.on = params.get('dof') !== '0';
   window.__house = houseSets; window.__HT = HT; window.__houseApply = houseApply;
@@ -742,16 +785,279 @@ async function peonyBush(env) {
     bushDome = p => { l.copy(p).applyMatrix4(inv); if (l.y < -0.05) return 9;
       return (Math.hypot((l.x - cx) / r.x, l.y / r.y, (l.z - cz) / r.z) - 1) * rm; };
   }
+  bush.updateMatrixWorld(true); bedDomes.push(canopy(bush));   // и куст пионов: не вплотную
+  // опавшие лепестки под кустом (её слово 15 окт: «пусть что-то на земле лежит, немножко уюта»); ?lep=0 — без них
+  if (params.get('lep') !== '0' && params.get('kust') !== 'old') {
+    const { litter } = await import('./пион-кодекс.js');
+    bush.add(litter(THREE, P, { n: 16, seed: 7, spread: 0.55, len: 0.05, wid: 0.8, cup: 0.3, color: [150, 26, 64], edge: [92, 22, 40], claw: [205, 150, 150] }));
+  }
+  attachBed(P, bush);
+}
+// ЭХИНАЦЕЯ (15 окт, её слово: «по нитке ближе к левой палке садим эхинацею, потом повесим туда работу»).
+// Модель Кодекса по её фото (48 растений, ~1,2 м), облегчена (сад/эхинацея/для-сайта.py → эхинацея.bin.gz, цвет по
+// вершинам); вербена Кодекса пока не ставится (её слово: «скрой, потом посадим»). Движется тем же кодом, что куст.
+// Стоит между левым колышком и «Первым морем», под пустыми прищепками (x −0,98…−0,64) — там будет новая работа.
+// Растения, что вплотную к колышку или под самой картиной, не ставятся. ?ehin=0 — без неё, ?ehx= ?ehz= — где.
+let ehin = null;
+async function echinaceaBed(env, floor) {
+  const M = await import('./пион-кодекс.js');
+  // 15 окт, её фото «вот как должна расти»: два куста у «33 слёз» (сад/эхинацея/кусты.py) — уже в координатах мира,
+  // в обход листа, колышка и «Первого моря»; грядка ставится в (0, пол, 0)
+  const g0 = new THREE.Vector3(+(params.get('ehx') ?? 0), floor, +(params.get('ehz') ?? 0));
+  const P = await M.loadPeony(THREE, { env, data: ehinPre });
+  ehin = P; tm('эхинацея');
+  const bed = P.group; bed.name = 'эхинацея'; bed.position.copy(g0);
+  // цвет лепестков у Кодекса подобран под яркий свет Blender — здесь светлее, к розовому её фото (?ehp= — сила)
+  { const k = +(params.get('ehp') ?? 1.55), m = bed.children.find(o => o.name === 'лепесток'); if (m) m.material.color.setRGB(k, k * 0.93, k * 0.98); }
+  scene.add(bed); window.__ehin = P;
+  bed.updateMatrixWorld(true);
+  bedDomes.push(canopy(bed));                        // для камеры — к цветам не вплотную (canopy)
+  if (params.get('lep') !== '0')                     // и у неё пара упавших язычков
+    bed.add(M.litter(THREE, P, { n: 7, seed: 5, spread: 0.6, squash: 1.4, len: 0.05, wid: 0.16, cup: 0.12, color: [214, 92, 150], edge: [150, 70, 96], claw: [190, 120, 140] }));
+  attachBed(P, bed);
+  peacocks(P, bed).catch(e => console.warn('павлиний глаз:', e)).finally(() => pvDone());
+}
+// ВЕРБЕНА (15 окт вечером, её слово: «Кодекс плохо справился с их геометрией — посмотри покрупнее, поправь
+// геометрию и вставь их тоже в композицию»). Построена заново по её видео (сад/вербена/вербена.py): тонкий
+// четырёхгранный стебель, супротивные ветки, на концах зонтики шапочек; места — верхушки с её фото, за эхинацеей,
+// в обход эхинацеи (проверка по треугольникам). Движется тем же кодом, что куст и эхинацея. ?verb=0 — без неё.
+async function verbenaBed(env, floor) {
+  const M = await import('./пион-кодекс.js');
+  const P = await M.loadPeony(THREE, { env, data: verbPre }); tm('вербена');
+  const bed = P.group; bed.name = 'вербена'; bed.position.set(0, floor, 0);
+  { const k = +(params.get('vbp') ?? 1.2), m = bed.children.find(o => o.name === 'цветок'); if (m) m.material.color.setRGB(k, k, k); }
+  scene.add(bed); window.__verb = P; bed.updateMatrixWorld(true);
+  bedDomes.push(canopy(bed));
+  attachBed(P, bed);
+  // ВЕТОЧКА ВПЕРЕДИ РАБОТЫ (15 окт, её слово: «посадить вперёд вербену, чтобы с одной стороны веточка вербены немножечко
+  // как бы впереди работы была — так будет красиво»). Один стебель из той же вербены (№ 21, высота 1,05 м) пересажен
+  // перед левым краем «33 слёз»: шапочки — у нижнего угла развёрнутого листа. ?vfront=0 — без неё, ?vfx= ?vfz= — место.
+  if (params.get('vfront') !== '0') {
+    const K = +(params.get('vfk') ?? 21), Q = await M.loadPeony(THREE, { env, data: verbPre, keep: (b, k) => k === K });
+    const b0 = Q.dbg().S[K].base, g = Q.group; g.name = 'вербена впереди';
+    g.position.set(+(params.get('vfx') ?? -0.97) - b0.x, floor, +(params.get('vfz') ?? 0.3) - b0.z);
+    { const k = +(params.get('vbp') ?? 1.2), m = g.children.find(o => o.name === 'цветок'); if (m) m.material.color.setRGB(k, k, k); }
+    scene.add(g); window.__verbF = Q; g.updateMatrixWorld(true);
+    bedDomes.push(canopy(g, 0.15));
+    attachBed(Q, g);
+  }
+}
+const verbPre = SITE && params.get('verb') !== '0' ? import('./пион-кодекс.js').then(m => m.fetchPeony('./вербена.txt')) : null;
+verbPre?.catch(e => console.warn('вербена:', e));
+const ehinPre = SITE && params.get('ehin') !== '0' ? import('./пион-кодекс.js').then(m => m.fetchPeony('./эхинацея.txt')) : null;
+ehinPre?.catch(e => console.warn('эхинацея:', e));
+const bedDomes = [];
+// К ЦВЕТАМ — НЕ ВПЛОТНУЮ (15 окт ночью, её слово: «чтобы человек прямо сильно не мог к цветам приблизиться… в куст,
+// чтобы он там заходил, — не надо; к работам он подходит»). Для камеры грядка — столбики по сетке 10 см высотой
+// с растения в этом месте; до них не ближе M (сбоку и сверху). Над низкими цветами у работы глаз проходит — к листу
+// подойти можно, в высокий куст и в вербену — нет. ?near= — запас, м.
+function canopy(bed, M = +(params.get('near') ?? 0.3)) {
+  const C = 0.1, H = new Map(); let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  for (const m of bed.children) { const p = m.geometry?.attributes.position; if (!p || !m.isMesh) continue;
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = Math.floor(x / C) + ',' + Math.floor(z / C);
+      if (y > (H.get(k) ?? -1)) H.set(k, y); } }
+  const inv = new THREE.Matrix4().copy(bed.matrixWorld).invert(), l = new THREE.Vector3(), R = Math.ceil((M + C) / C);
+  return p => { l.copy(p).applyMatrix4(inv); const i0 = Math.floor(l.x / C), j0 = Math.floor(l.z / C); let d = 9;
+    for (let i = i0 - R; i <= i0 + R; i++) for (let j = j0 - R; j <= j0 + R; j++) { const h = H.get(i + ',' + j); if (h === undefined) continue;
+      const dx = Math.max(0, Math.abs(l.x - (i + 0.5) * C) - C / 2), dz = Math.max(0, Math.abs(l.z - (j + 0.5) * C) - C / 2);
+      d = Math.min(d, Math.hypot(dx, dz, Math.max(0, l.y - h)) - M); }
+    return d; };
+}
+// ПАВЛИНИЙ ГЛАЗ (15 окт; модель Кодекса, сад/павлиний-глаз/для-сайта.py; её видео из сада — Downloads, 3 ролика).
+// Как в её видео: сидят на шишках эхинацеи, крылья раскрыты плашмя или галочкой и подолгу неподвижны; изредка
+// медленно прикрывают и снова раскрывают, иногда складывают над спиной на миг; переступают — поворачиваются на
+// шишке. Тронули их цветок пальцем — вспархивают: машут часто, между взмахами планируют, кружат над цветами и у
+// работы и садятся на свободную шишку. Шишка качается — бабочка вместе с ней. ?pav=0 — без них, ?pavn= — сколько.
+async function peacocks(P, bed) {
+  if (params.get('pav') === '0') return;
+  const { fetchPeony } = await import('./пион-кодекс.js');
+  const buf = await fetchPeony('./павлин.txt'), hl = new DataView(buf).getUint32(0, true);
+  const head = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 4, hl)));
+  const wtex = await new THREE.TextureLoader().loadAsync('./павлин-крылья.jpg');
+  wtex.flipY = false; wtex.colorSpace = THREE.SRGBColorSpace; wtex.anisotropy = 4;
+  let off = 4 + hl; const take = (T, n, bytes) => { const a = new T(buf, off, n); off += bytes; return a; };
+  const parts = head.groups.map(g => {
+    const [bp, bn, bu, bi] = g.bytes, geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(take(Float32Array, g.nV * 3, bp).slice(), 3));
+    geo.setAttribute('normal', new THREE.BufferAttribute(take(Int8Array, g.nV * 3, bn).slice(), 3, true));
+    geo.setAttribute('uv', new THREE.BufferAttribute(take(Float32Array, g.nV * 2, bu).slice(), 2));
+    geo.setIndex(new THREE.BufferAttribute(take(Uint32Array, g.nI, bi).slice(), 1));
+    const c = g.color, m = new THREE.MeshStandardMaterial({ color: new THREE.Color(c[0], c[1], c[2]), roughness: g.rough, metalness: 0,
+      map: g.tex ? wtex : null, side: g.tex ? THREE.FrontSide : THREE.DoubleSide });
+    return { part: g.part, geo, m };
+  });
+  const seats = P.tops.map((t, k) => t && P.top(k, new THREE.Vector3()) ? k : -1).filter(k => k >= 0);
+  const taken = new Set(), N = Math.min(+(params.get('pavn') ?? 3), seats.length);
+  const rnd = Math.random, v = new THREE.Vector3(), wp = new THREE.Vector3();
+  // садятся на видные шишки: ближе к зрителю и не в самой гуще (как в её видео — на верхних цветках)
+  const pick = () => { const free = seats.filter(k => !taken.has(k)); const k = free[Math.floor(rnd() * free.length)]; taken.add(k); return k; };
+  const flies = [];
+  // 15 окт вечером, её слово: ещё ДВЕ — летают вокруг работы постоянно, головой вперёд (не садятся). ?pavf= — сколько
+  const NF = +(params.get('pavf') ?? 2);
+  for (let i = 0; i < N + NF; i++) {
+    const bf = new THREE.Group(); bf.name = 'павлиний глаз';
+    const body = new THREE.Group(); bf.add(body);                     // голова к −z, верх +y
+    const hinge = {};
+    for (const [k, p] of Object.entries(head.hinges)) { const h = new THREE.Group(); h.position.set(...p); body.add(h); hinge[k] = h; }
+    for (const q of parts) { const mesh = new THREE.Mesh(q.geo, q.m); mesh.castShadow = true; (q.part === 'тело' ? body : hinge[q.part]).add(mesh); }
+    // φ: 0 — сложены над спиной, π/2 — плашмя; заднее крыло чуть отстаёт от переднего
+    const wings = phi => { const a = Math.PI / 2 - phi;
+      for (const [k, h] of Object.entries(hinge)) h.rotation.z = (k[0] === 'R' ? 1 : -1) * a * (k.endsWith('hind') ? 0.94 : 1); };
+    scene.add(bf);
+    const B = { bf, wings, seat: i < N ? pick() : -1, yaw: rnd() * 6.28, yawT: 0, open: 1.3, want: 1.3, hold: 1 + rnd() * 4, t: rnd() * 10, fly: null,
+                always: i >= N };
+    B.yawT = B.yaw; flies.push(B);
+  }
+  const _pitch = new THREE.Quaternion(), _xax = new THREE.Vector3(1, 0, 0);
+  const lookQ = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), m4 = new THREE.Matrix4(), tgt = new THREE.Vector3();
+  // где работа: середина листа «33 слёз» (её верх — на прищепках), а нет её — середина грядки
+  const WORK = { x: ROLL ? (X_ROLL[0] + X_ROLL[1]) / 2 : bed.position.x - 0.8, z: 0, top: 0 };
+  const workAt = () => { if (ROLL) { ROLL.group.updateMatrixWorld(); const p = ROLL.group.getWorldPosition(new THREE.Vector3()); WORK.top = p.y; WORK.z = p.z; } };
+  const seatPos = (k, out) => { P.top(k, out); return out.applyMatrix4(bed.matrixWorld); };
+  const takeOff = B => {
+    const p0 = B.bf.position.clone();
+    B.fly = { t: 0, v: new THREE.Vector3((rnd() - 0.5) * 0.6, 0.55, (rnd() - 0.5) * 0.6), wp: null, dur: 6 + rnd() * 6, land: false, flap: 0, glide: 0,
+              turn: rnd() < 0.5 ? -1 : 1 };
+    taken.delete(B.seat); B.seat = -1; B.p0 = p0;
+  };
+  for (const B of flies) if (B.always) {                // кружащие: сразу в воздухе, на кольце вокруг работы, по разные стороны
+    workAt(); const a = flies.indexOf(B) * 2.6;
+    B.bf.position.set(WORK.x + 0.55 * Math.cos(a), bed.position.y + 1.1 + 0.2 * rnd(), WORK.z + 0.55 * Math.sin(a));
+    takeOff(B); B.fly.dur = Infinity; B.fly.ang = a; B.fly.turn = flies.indexOf(B) % 2 ? 1 : -1; B.fly.v.set(0, 0, 0);
+  }
+  window.__pav = { flies, takeOff };
+  // в видео-петле: сидящие не вспархивают и машут медленно в такт петле; кружащие — по замкнутому пути (эллипс
+  // вокруг листа: вбок 0,42 м — до «Первого моря» не долетают, вглубь 0,6), голова по ходу, взмахи очередями
+  const vidStep = () => {
+    const T = VID_T, w = 2 * Math.PI / T; workAt();
+    const path = (B, t, out) => { const k = flies.indexOf(B), a = w * t * (k % 2 ? 1 : -1) + k * 2.6;
+      const zz = 0.03 * Math.sin(11 * w * t + k) + 0.02 * Math.sin(17 * w * t + 2 * k);          // рывки курса
+      return out.set(WORK.x + Math.cos(a) * (0.42 + 0.04 * Math.sin(2 * w * t + k) + zz), bed.position.y + 1.12 + 0.09 * Math.sin(3 * w * t + k) + 0.04 * Math.sin(5 * w * t) + 0.02 * Math.sin(13 * w * t + k),
+                     WORK.z + Math.sin(a) * (0.6 + 0.05 * Math.sin(2 * w * t + 1 + k) - zz)); };
+    for (const B of flies) {
+      const t = clock;
+      if (!B.always) { seatPos(B.seat, B.bf.position); B.wings(1.25 + 0.12 * Math.sin(w * t * 2 + B.yaw)); B.bf.quaternion.setFromAxisAngle(up, B.yaw); B.bf.rotateX(-0.12); continue; }
+      path(B, t, B.bf.position); path(B, t + 0.12, tgt);
+      m4.lookAt(B.bf.position, tgt, up); B.bf.quaternion.setFromRotationMatrix(m4);
+      const fl = Math.sin(w * 3 * t + B.t) > -0.35, fw = 2 * Math.PI * Math.round(9 * T) / T;   // очередь взмахов — планирует, повторяется в петле
+      B.bf.quaternion.multiply(_pitch.setFromAxisAngle(_xax, fl ? 0.32 : 0.08));
+      if (fl) B.bf.position.y += 0.008 * Math.sin(fw * t);                 // взмах подбрасывает
+      B.wings(fl ? 0.95 + 0.85 * Math.sin(fw * t) : 1.45 + 0.05 * Math.sin(w * 7 * t));
+    }
+  };
+  const step = dt => {
+    if (VID_T) return vidStep();
+    for (const B of flies) {
+      B.t += dt;
+      if (!B.fly) {
+        if (P.pushed(B.seat) > 0.004) { takeOff(B); continue; }     // её цветок тронули — вспорхнула
+        seatPos(B.seat, B.bf.position);
+        // сидит: раскрыта, подолгу неподвижна; изредка медленно прикрыть-раскрыть, редко — сложить на миг
+        B.hold -= dt;
+        if (B.hold < 0) {
+          const r = rnd();
+          if (B.want < 0.6) { B.want = 1.15 + rnd() * 0.4; B.hold = 2.5 + rnd() * 5; }
+          else if (r < 0.18) { B.want = 0.12 + rnd() * 0.15; B.hold = 0.5 + rnd() * 1.2; }
+          else { B.want = 0.85 + rnd() * 0.65; B.hold = 1.5 + rnd() * 4; }
+          if (rnd() < 0.3) B.yawT = B.yaw + (rnd() - 0.5) * 1.2;      // переступила по шишке
+        }
+        B.open += (B.want - B.open) * (1 - Math.exp(-dt * (B.want < 0.6 ? 5 : 1.6)));
+        B.yaw += (B.yawT - B.yaw) * (1 - Math.exp(-dt * 1.2));
+        B.wings(B.open + 0.015 * Math.sin(B.t * 2.3));
+        B.bf.quaternion.setFromAxisAngle(up, B.yaw); B.bf.rotateX(-0.12);
+        continue;
+      }
+      const F = B.fly; F.t += dt; workAt();
+      // куда: сперва кружит (точки над цветами и у работы), потом — к свободной шишке
+      if (!F.wp || B.bf.position.distanceTo(F.wp) < 0.15) {
+        if (F.t > F.dur && !F.land) { F.land = true; B.seat = pick(); }
+        // 15 окт, её слово: «вокруг работы, вокруг цветочков» — кружит вокруг «33 слёз» по кольцу 0,45–0,65 м
+        // (шаг по кольцу не больше 0,9 рад — хорда не режет лист), на высоте 0,9–1,5 м: над цветами и под ниткой
+        F.wpT = 0;
+        if (!F.land) { F.ang = (F.ang ?? Math.atan2(B.bf.position.z - WORK.z, B.bf.position.x - WORK.x)) + F.turn * (0.5 + 0.4 * rnd());
+          const r = 0.45 + 0.2 * rnd();
+          F.wp = new THREE.Vector3(WORK.x + r * Math.cos(F.ang), bed.position.y + 0.9 + 0.6 * rnd(), WORK.z + r * Math.sin(F.ang)); }
+      }
+      if (F.land) {                                          // садится сверху: над шишкой — и вниз, не сбоку сквозь лепестки
+        F.wp = seatPos(B.seat, tgt).clone(); const hz = Math.hypot(F.wp.x - B.bf.position.x, F.wp.z - B.bf.position.z);
+        if (hz > 0.03) F.wp.y = Math.max(F.wp.y + 0.1, B.bf.position.y); }
+      const to = v.copy(F.wp).sub(B.bf.position), d = to.length();
+      const vmax = F.land ? Math.max(0.12, Math.min(0.7, d * 3)) : 0.6 + 0.25 * Math.sin(F.t * 0.9 + B.t);
+      to.normalize().multiplyScalar(vmax).sub(F.v).multiplyScalar(F.land ? 3.5 : 1.8);
+      F.v.addScaledVector(to, dt);
+      // 15 окт, её слово: «бабочки нереалистично летают». Было: плавно по кругу 1,1 м/с, качание синусом — как
+      // самолётик. Живая (павлиний глаз у цветов, 0,5–0,9 м/с): рывками меняет курс каждые 0,15–0,5 с; каждый
+      // взмах подбрасывает тело на ~1 см (подъём на ходе крыльев вниз), на планировании — проседает; летит
+      // носом чуть вверх, а голова поворачивается за курсом плавно, без кивков в такт взмахам.
+      if (!F.land) {
+        F.jT = (F.jT ?? 0) - dt;
+        if (F.jT <= 0) { F.jT = 0.15 + rnd() * 0.35; F.j = (F.j ?? new THREE.Vector3()).set((rnd() - 0.5) * 2.4, (rnd() - 0.45) * 1.6, (rnd() - 0.5) * 2.4); }
+        F.v.addScaledVector(F.j, dt);
+      }
+      if (F.glide > 0) F.v.y -= 0.5 * dt; else F.v.y += 24 * Math.cos(F.flap * 2 * Math.PI * 9) * dt;
+      B.bf.position.addScaledVector(F.v, dt);
+      // сквозь лист «33 слёз» не пролетает: у плоскости листа (и рулона перед ним) — отталкивается назад, откуда летела
+      if (ROLL) { const q = B.bf.position, top = WORK.top, bot = top - ROLL.u - 0.12;
+        if (Math.abs(q.x - WORK.x) < 0.3 && q.y < top + 0.02 && q.y > bot && q.z > WORK.z - 0.05 && q.z < WORK.z + 0.17) {
+          const back = q.z < WORK.z + 0.06; q.z = back ? WORK.z - 0.05 : WORK.z + 0.17; F.v.z = (back ? -1 : 1) * Math.abs(F.v.z); F.hit = true; } }
+      // и сквозь «Первое море» справа (15 окт вечером: кольцо задевало картину) — её левый край у x −0,36, лист в z ≈ 0
+      { const q = B.bf.position; if (q.x > -0.40 && Math.abs(q.z - WORK.z) < 0.08 && q.y < WORK.top + 0.02) {
+          const back = q.z < WORK.z; q.z = WORK.z + (back ? -0.08 : 0.08); F.v.z = (back ? -1 : 1) * Math.abs(F.v.z); F.hit = true; } }
+      if (F.wp && !F.land) F.wp.x = Math.min(F.wp.x, -0.42);
+      // 15 окт ночью, её снимок: бабочка долго билась у правого верхнего угла листа — цель была за листом, лист
+      // отталкивал, цель не менялась. Теперь: упёрлась — облетает край листа со своей стороны (справа «Первое море» —
+      // тогда слева); не долетела до цели за 4 с — новая цель по кольцу.
+      F.wpT = (F.wpT ?? 0) + dt;
+      if (!F.land && (F.hit || F.wpT > 4)) {
+        const q = B.bf.position, side = q.x > WORK.x && !F.hit ? 1 : -1, back = q.z < WORK.z;
+        F.wp = new THREE.Vector3(WORK.x + side * 0.5, Math.max(q.y, bed.position.y + 0.95), WORK.z + (back ? -0.3 : 0.32));
+        F.ang = null; F.wpT = 0;
+      }
+      F.hit = false;
+      // взмахи очередями ~9 в секунду, между ними — планирует, крылья плашмя
+      if (F.glide > 0) { F.glide -= dt; B.wings(1.45 + 0.05 * Math.sin(F.t * 7)); }
+      else { F.flap += dt; B.wings(0.95 + 0.85 * Math.sin(F.flap * 2 * Math.PI * 9));
+             if (F.flap > 0.35 + rnd() * 0.5 && !F.land) { F.flap = 0; F.glide = 0.15 + rnd() * 0.35; } }
+      const sp = F.v.length();
+      // голова (−z) — по ходу (15 окт, её слово: «летит жопкой назад»): Matrix4.lookAt(глаз, цель) кладёт +z от цели
+      // к глазу, значит цель — впереди по ходу, тогда −z смотрит туда, куда летит
+      F.vs = (F.vs ?? F.v.clone()).lerp(F.v, 1 - Math.exp(-dt * 5)); F.vs.y *= 0.5;   // курс — по сглаженной скорости
+      if (sp > 0.02) { m4.lookAt(B.bf.position, tgt.copy(B.bf.position).add(F.vs), up); lookQ.setFromRotationMatrix(m4);
+        lookQ.multiply(_pitch.setFromAxisAngle(_xax, F.glide > 0 ? 0.08 : 0.32));
+        const off = B.bf.quaternion.angleTo(lookQ);                      // отскок от листа — разворот сразу, не боком
+        B.bf.quaternion.slerp(lookQ, 1 - Math.exp(-dt * (off > 0.8 ? 40 : 8))); }
+      if (F.land && d < 0.02 && Math.hypot(F.wp.x - B.bf.position.x, F.wp.z - B.bf.position.z) < 0.03) {   // села
+        B.fly = null; B.open = 1.2; B.want = 1.35; B.hold = 2 + rnd() * 3;
+        const e = new THREE.Euler().setFromQuaternion(B.bf.quaternion, 'YXZ'); B.yaw = B.yawT = e.y;
+      }
+    }
+  };
+  pvStep = step;                                         // шагает вместе с грядками (attachBed)
+}
+let pvStep = () => {};
+// ГРЯДКИ — куст пионов и эхинацея (15 окт) — палец по ним один и тот же: лёг на растение — вид не крутится,
+// ладонь держит (grab), ведёшь — клонит, отпустила (release) — само возвращается и колышется.
+const beds = [];
+let bedNow = null;
+peonyHit = e => {
+  ray.setFromCamera(toNdc(e), cam); let best = Infinity, bb = null;
+  for (const b of beds) { const d = b.P.hit(ray.ray); if (d < best) { best = d; bb = b; } }
+  if (!bb) return false;
+  for (const b of beds) b.P.release?.();
+  bb.P.grab?.(ray.ray); bedNow = bb; return true;
+};
+function attachBed(P, bush) {
+  const bed = { P, bush }; beds.push(bed);
+  if (VID_T) P.setLoop?.(VID_T);
   const kw = +(params.get('kwind') ?? 1);
-  peonyStep = dt => P.step(dt, clock, x => kw * windSig(x));
-  // палец (или мышь) по кусту: ход пальца на экране → в метры на месте куста → толчок стеблям под ним
+  peonyStep = dt => { for (const b of beds) b.P.step(dt, clock, x => kw * windSig(x)); pvStep(dt); };
+  // палец (или мышь) по растениям: ход пальца на экране → в метры на месте грядки → ладонь ведёт.
+  // Палец, лёгший на растение, вид не крутит — он ведёт по нему (её слово 13 окт); мышь — и просто наведением.
+  // Палец, начавший с работы или с пустого (свернуть, обойти), растения по пути не трогает.
   const last = new Map(), mv = new THREE.Vector3(), cr = new THREE.Vector3(), cu = new THREE.Vector3();
-  // палец, лёгший на куст, вид не крутит — он ведёт по кусту (её слово 13 окт); мышь — и просто наведением.
-  // Палец, начавший с работы или с пустого (свернуть, обойти), куст по пути не трогает.
-  if (P.hit) peonyHit = e => { ray.setFromCamera(toNdc(e), cam); return P.hit(ray.ray) < Infinity; };
   canvas.addEventListener('pointermove', e => {
-    const mine = down && down.bush && down.id === e.pointerId, hover = e.pointerType === 'mouse' && !e.buttons;
-    if (P.hit && !mine && !hover) { last.delete(e.pointerId); return; }
+    const mine = down && down.bush && down.id === e.pointerId && bedNow === bed, hover = e.pointerType === 'mouse' && !e.buttons;
+    if (!mine && !hover) { last.delete(e.pointerId); return; }
     const pr = last.get(e.pointerId); last.set(e.pointerId, [e.clientX, e.clientY]); if (!pr) return;
     const dx = e.clientX - pr[0], dy = e.clientY - pr[1]; if (!dx && !dy) return;
     ray.setFromCamera(toNdc(e), cam);
@@ -761,8 +1067,10 @@ async function peonyBush(env) {
     const L = mv.length(); if (L > 0.08) mv.multiplyScalar(0.08 / L);
     P.poke(ray.ray, mv.multiplyScalar(+(params.get('kgo') ?? 1)));
   });
-  canvas.addEventListener('pointerleave', e => last.delete(e.pointerId));
-  canvas.addEventListener('pointerup', e => last.delete(e.pointerId));
+  const off = e => { last.delete(e.pointerId); P.release?.(); if (bedNow === bed) bedNow = null; };
+  canvas.addEventListener('pointerleave', off);
+  canvas.addEventListener('pointerup', off);
+  canvas.addEventListener('pointercancel', off);
 }
 // ЛАМПА-ПЕРЕНОСКА (Анныч, 10 окт ночью: «для уюта — лампочка Ильича в банке»). Обычная литровая банка,
 // крышка закрыта, провод продет сквозь крышку; гвоздик вбит наверху в скат, провод с него спускается
@@ -1478,7 +1786,9 @@ const VAZY = SITE && params.get('vazy') !== '0';
 const X_VAZY = [0.80, 1.00];
 // табличка «Двух ваз» — на своей прищепке справа от второго листа (её слово 12 окт вечером: «такую же табличку»)
 const X_TAG_V = 1.12;
-const X_EMPTY = params.has('loop') ? [-0.98, -0.64, 0.43, 0.468, 0.98] : SITE ? [-0.98, -0.64, 0.425, 0.49, ...(VAZY ? [...X_VAZY, X_TAG_V] : [])] : [-0.98, -0.64, 0.48, 0.98];
+// табличка «33 слёз» — на своей прищепке справа от листа (лист 50 см: x −1,06…−0,56), 15 окт
+const X_TAG_T = -0.50, SLEZY = SITE && params.get('slezy') !== '0';
+const X_EMPTY = params.has('loop') ? [-0.98, -0.64, 0.43, 0.468, 0.98] : SITE ? [-0.98, -0.64, 0.425, 0.49, ...(VAZY ? [...X_VAZY, X_TAG_V] : []), ...(SLEZY ? [X_TAG_T] : [])] : [-0.98, -0.64, 0.48, 0.98];
 const X_OUT = X_C[X_C.length - 1];
 const siteBase = x => { const b = SITE ? ROPE_A : 1.5; return ROPE_ABOVE - SAG * (1 - (x / b) ** 2) + SAG * (1 - (X_OUT / b) ** 2); };
 // ЗОНА: от крайней левой до крайней правой прищепки нитка — ровно сайтовая (все касания зажимов, колец,
@@ -2495,10 +2805,11 @@ function reflStep(force = false) {
   clips.forEach(c => c.visible = false); studio.visible = true;
   const hide = ZONA ? [domShell, ...zoneMeshes].filter(Boolean) : []; hide.forEach(o => o.visible = false);
   const bg = scene.background; if (SHINE > 0 || ZONA) scene.background = STUDIO_BG;
-  reflCam.update(renderer, scene);
-  scene.background = bg;
-  hide.forEach(o => o.visible = true);
-  clips.forEach(c => c.visible = true); studio.visible = false;
+  try { reflCam.update(renderer, scene); }
+  finally {                        // что бы ни случилось — серая студия только для латуни, в кадр не попадает
+    scene.background = bg;
+    hide.forEach(o => o.visible = true);
+    clips.forEach(c => c.visible = true); studio.visible = false; }
 }
 // ЧТО ВИДИТ ЛАТУНЬ, А КАМЕРА НЕТ. Металл показывает только то, что отражает; вокруг одно белое —
 // и литьё выходило ровным жёлтым, как пластмасса. В настоящем белом зале у вещи есть серый пол,
@@ -2564,14 +2875,14 @@ let pointerNear = -1;                                   // над каким з�
 // в жизни нет вовсе. На телефоне наведения не существует в принципе. Теперь: пальцы
 // (или кнопка мыши) жмут — раскрывается; отпустили — закрылся.
 let clipPress = -1;
-const spin0 = [1.9, -0.7, 2.8, 0.4, -2.1, 1.2, 0.9, -1.5, 2.3, -0.4];   // у каждого кольца разрез смотрит в свою сторону
+const spin0 = [1.9, -0.7, 2.8, 0.4, -2.1, 1.2, 0.9, -1.5, 2.3, -0.4, 1.4, -1.1];   // у каждого кольца разрез смотрит в свою сторону
 const clipState = clips.map((c, k) => {
   const st = mkState(true, BN_TH_HOLD, BN_TH_MAX * 0.97, BN_TH_MAX, HANG);
   st.spin = st.spin0 = spin0[k]; return st;
 });
 // У каждой прищепки своя частота, ±5 %: латунь отлита и согнута по-разному, и висят они
 // на чуть разной длине. Одинаковые качались бы в ногу, как солдаты.
-const SW_K = [1.00, 0.95, 1.04, 0.97, 1.05, 0.98, 1.02, 0.96, 1.03, 0.97];
+const SW_K = [1.00, 0.95, 1.04, 0.97, 1.05, 0.98, 1.02, 0.96, 1.03, 0.97, 1.01, 0.99];
 const emptyState = empties.map((c, k) => { const st = mkState(false); st.spin = st.spin0 = spin0[k + 3];
   st.rigid = true; st.kw = SW_K[k + 3] ** 2; return st; });
 clipState.forEach((st, k) => { st.kw = SW_K[k] ** 2; });
@@ -2849,6 +3160,7 @@ const tagReady = !TAG ? Promise.resolve() : (async () => {
   const load = src => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });   // decode() в скрытой вкладке ждёт вечно
   const [text, eye] = await Promise.all([load('бирка/надпись.png'), load('бирка/глаз.png')]);
   TAG.img = { text, eye }; tm('бирка: картинки');
+  await Promise.all([5, 55, 65].map(n => tagBakedLoad(n - 5 + (+params.get('tag') || 5)))); tm('бирка: готовые');
   redrawBackLabel(); tm('бирка: надпись');
   setTagKind(+params.get('tag') || 5);                   // её выбор 8 окт: прозрачный пластик
   if (TAG.pick) tagPicker();
@@ -3082,12 +3394,30 @@ function edgeGlint(m) {
 const tagCache = {};
 // Собрать табличку вида n (рельеф, нормали, цвет, сетки). Текст — TAG.img.text, цена — TAG.price:
 // так же собирается и табличка «Двух ваз» (vazyTag), подменив их на время.
+// ЗАПЕЧЁННЫЕ ТАБЛИЧКИ (15 окт, её слово: «сайт долго грузится… делай, как правильно, по-современному»).
+// Рельеф, нормали и цвет таблички считались в телефоне при каждом открытии — 2 с на маке, на телефоне вдвое-вчетверо
+// дольше. Теперь они посчитаны заранее (__holst.bakeTags() → холст/бирка/запечено-<n>-цвет|нормаль.webp) и
+// приходят готовыми картинками; нет картинок — считается, как прежде. Поменялся текст, цена, вид — пересчитать:
+// TAG_BAKE_V + 1 и снова __holst.bakeTags() (без ?nobake страница сама подхватит старое — осторожно).
+const TAG_BAKE_V = 1, tagBaked = {};
+async function tagBakedLoad(n) {
+  if (params.has('nobake')) return;
+  const tl = new THREE.TextureLoader(), f = k => `бирка/запечено-${TAG_BAKE_V}-${n}-${k}.webp`;
+  try {
+    const [c, nm] = await Promise.all([tl.loadAsync(f('цвет')), tl.loadAsync(f('нормаль'))]);
+    c.colorSpace = THREE.SRGBColorSpace; c.anisotropy = nm.anisotropy = maxAniso; tagBaked[n] = { c, nm };
+  } catch (e) { /* нет готовых — посчитаем */ }
+}
 function tagBuild(kind, n) {
+    if (tagBaked[n] && kind.mat === 'acrylic') return tagFinish(kind, n, tagBaked[n].nm, null, tagBaked[n].c, null);
     const h = tagHeight(kind); tm('бирка: рельеф');
     const depth = kind.mat === 'brass' ? 10 : kind.mat === 'acrylic' ? 8 : 13;    // бумага: при 7 буквы еле читались
     const nFront = tagNormal(h, depth, kind.mat === 'paper' ? (kind.back ? 0.10 : 0.05) : 0, n);
     const nBack = kind.mat === 'paper' ? tagNormal(new Float32Array(h.length), 1, kind.back ? 0.10 : 0.05, n + 10) : null;
     tm('бирка: нормали'); const cFront = tagColor(kind, h); tm('бирка: цвет'); const cBack = kind.mat === 'acrylic' ? null : tagColor(kind, null, true);
+    return tagFinish(kind, n, nFront, nBack, cFront, cBack);
+}
+function tagFinish(kind, n, nFront, nBack, cFront, cBack) {
     const env = { envMap: reflRT.texture, envMapIntensity: weldBrass.envMapIntensity };
     let front, back, side;
     if (kind.mat === 'paper') {
@@ -3158,6 +3488,140 @@ if (VAZY) {
     };
     setTimeout(add, 0);
   });
+}
+// «33 СЛЕЗЫ» — РУЛОНОМ (15 окт, её слово: «у меня она в рулоне — так рулончиком и подвешиваем; человек пальцем её
+// разворачивает… когда развернёт, пусть останется развёрнутой, а то сложно рассмотреть»; «розовым плотным кверху,
+// вниз к белому»; фото рулона в чате 15 окт). Бумага 100% хлопок, плотная, лист 50 × 70 см (по пропорции скана и по
+// длине рулона на её фото — НЕ подтверждено ею). Верхний край — в двух пустых прищепках (x −0,98 и −0,64), лист
+// висит рисунком к зрителю; низ свёрнут рулоном ВПЕРЁД, к зрителю: бумага сама так свёрнута — рисунок внутри,
+// снаружи белая изнанка (её фото). Рулон — спираль: внутренний виток ~4,5 см (память бумаги), между витками —
+// толщина листа и зазор, витки не входят друг в друга. Тянешь вниз — рулон разматывается (катится, рисунок идёт
+// за пальцем), отпустила — стоит, где отпустила; вверх — сматывается. Развёрнут до конца — нижний край чуть
+// загибается к зрителю (та же память бумаги). Две прищепки держат лист вместе — качаются одной. ?slezy=0 — без неё,
+// ?rin= — внутренний радиус, ?ru= — сколько развёрнуто при открытии, м.
+const X_ROLL = [-0.98, -0.64];
+let ROLL = null;
+if (SLEZY) {
+  const W = 0.50, L = 0.70, TH = 0.0004, GAP = 0.0011, RIN = +(params.get('rin') ?? 0.045), NX = 28, NS = 240;
+  const XS = Array.from({ length: NX + 1 }, (_, i) => 0.5 - 0.5 * Math.cos(Math.PI * i / NX));   // столбцы гуще к краям: там мятость
+  const KS = (TH + GAP) / (2 * Math.PI);                     // на сколько уменьшается радиус за радиан
+  const k0 = X_EMPTY.indexOf(X_ROLL[0]), k1 = X_EMPTY.indexOf(X_ROLL[1]);
+  const nV = (NX + 1) * (NS + 1), pos = new Float32Array(nV * 3), nrm = new Float32Array(nV * 3), uv = new Float32Array(nV * 2), idx = [];
+  for (let j = 0; j <= NS; j++) for (let i = 0; i <= NX; i++) {
+    const v = j * (NX + 1) + i; uv[2 * v] = XS[i]; uv[2 * v + 1] = 1 - j / NS;    // верх листа — верх картинки
+    if (i < NX && j < NS) { const a = v, b = v + NX + 1; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); geo.setIndex(idx);
+  // Кромка (15 окт вечером, её слово: «край чуть-чуть неровный, срезанный ножом, чуть помять по краю, чтобы был
+  // жизненный»; её два фото края — ждём): рез ножом — линия края гуляет на ±0,7 мм плавно, без зубцов; у краёв лист
+  // чуть помят — волна до 1,5 мм поперёк листа, гаснет к 4 см от края. Мятость только на развёрнутом: в рулоне между
+  // витками 1,1 мм, помятость там не поместится. ?mjat=0 — ровный лист, как было.
+  const CLIP_X = (X_ROLL[1] - X_ROLL[0]) / 2, MJ = +(params.get('mjat') ?? 1), wob = (s, k) => Math.sin(s * 37 + k) * 0.5 + Math.sin(s * 91 + 2.1 * k) * 0.3 + Math.sin(s * 211 + 4.7 * k) * 0.2;
+  const cutX = j => [0.0007 * MJ * wob(j / NS * L, 1.3), 0.0007 * MJ * wob(j / NS * L, 5.9)];    // левый и правый край
+  const cutY = i => [0.0007 * MJ * wob(XS[i] * W, 3.1), 0.0007 * MJ * wob(XS[i] * W, 8.2)];    // верхний и нижний
+  const crump = (x, s) => {                                    // помятость у края, м (по нормали)
+    const e = Math.min(x + W / 2, W / 2 - x, s, L - s), f = Math.max(0, 1 - e / 0.04) ** 2;
+    const clip = THREE.MathUtils.smoothstep(Math.max(s, Math.abs(Math.abs(x) - CLIP_X)), 0.02, 0.05);   // в губках лист плоский
+    return f ? 0.0015 * MJ * f * clip * (Math.sin(x * 61 + s * 23) * 0.6 + Math.sin(x * 23 - s * 47 + 1.7) * 0.4) : 0;
+  };
+  // u — сколько листа висит ровно; остальное — спираль вперёд от его низа
+  const shape = u => {
+    const Lr = Math.max(0, L - u), Phi = (-RIN + Math.sqrt(RIN * RIN + 2 * KS * Lr)) / KS, R0 = RIN + KS * Phi;
+    for (let j = 0; j <= NS; j++) {
+      const sj = j / NS * L; let y, z, ny = 0, nz = 1;
+      if (sj <= u) { y = -sj; z = 0; }
+      else { const a = sj - u, f = (R0 - Math.sqrt(Math.max(0, R0 * R0 - 2 * KS * a))) / KS, R = R0 - KS * f;
+             y = -u - R * Math.sin(f); z = R0 - R * Math.cos(f); ny = Math.sin(f); nz = Math.cos(f); }
+      const flat = THREE.MathUtils.clamp((u - sj) / 0.03, 0, 1), cx = cutX(j);
+      for (let i = 0; i <= NX; i++) { const v = j * (NX + 1) + i, x = -W / 2 + W * XS[i];
+        const dx = i === 0 ? cx[0] : i === NX ? cx[1] : 0, dy = j === 0 ? cutY(i)[0] : j === NS ? cutY(i)[1] : 0;
+        const c = crump(x, sj) * flat;
+        pos[3 * v] = x + dx; pos[3 * v + 1] = y + dy + ny * c; pos[3 * v + 2] = z + nz * c; nrm[3 * v] = 0; nrm[3 * v + 1] = ny; nrm[3 * v + 2] = nz; }
+    }
+    if (MJ) geo.computeVertexNormals();
+    geo.attributes.position.needsUpdate = geo.attributes.normal.needsUpdate = true; geo.computeBoundingBox(); geo.computeBoundingSphere();
+  };
+  const tex = new THREE.TextureLoader().load('слёзы.webp'); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = maxAniso;
+  // лицо — её скан; изнанка — тёплая белая хлопковая бумага (не выбелена)
+  const front = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.92, side: THREE.FrontSide }));
+  const back = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0xf1ece2, roughness: 0.95, side: THREE.BackSide }));
+  for (const m of [front, back]) { m.castShadow = m.receiveShadow = true; }
+  const group = new THREE.Group(); group.name = '33 слезы'; group.add(front, back);
+  group.position.set((X_ROLL[1] - X_ROLL[0]) / 2, -EYE_UP - Z_JAW + 0.004, 0);
+  ROLL = { group, front, back, k0, k1, L, u: +(params.get('ru') ?? 0.05), uT: 0, box: new THREE.Box3() };
+  ROLL.uT = ROLL.u; shape(ROLL.u);
+  // верхний край — между двумя прищепками: нитка провисает, прищепки висят на разной высоте, и лист
+  // клонится вместе с ними (15 окт, её слово: «он же должен нитке подчиняться и заклёпкам… всё друг другу подчиняется»).
+  // 15 окт вечером, её слово: «слишком криво висит, надо ровнее — на правую прищепку сильнее зацеплена, на левую
+  // поменьше»: край над кончиками губок — слева 1 мм, справа 20 мм (губка 24 мм): наклон 5,3° → 2,1° (замер). ?rl= ?rr= — мм.
+  const TIP = -EYE_UP - Z_JAW, EL = +(params.get('rl') ?? 1) / 1000, ER = +(params.get('rr') ?? 20) / 1000;
+  ROLL.hang = () => {
+    const dx = X_ROLL[1] - X_ROLL[0], dy = ropeY(X_ROLL[1]) - ropeY(X_ROLL[0]) + ER - EL, a = Math.atan2(dy, dx);
+    group.rotation.z = a; group.position.set(dx / 2, TIP + EL + dy / 2, (ropeZ(X_ROLL[1]) - ropeZ(X_ROLL[0])) / 2);
+  };
+  // САМ СВОРАЧИВАЕТСЯ (15 окт ночью, её слово: «развернули, смотрим — и пусть она плавно сама назад возвращается,
+  // как обычная бумага; раз она в свёртке, она должна сама свернуться, а ты обратно её можешь развернуть»; «сразу,
+  // но медленно»): отпустила — через миг рулон катится вверх 7,5 см/с (развёрнутый целиком — за 9 с). ?rollback=0 —
+  // остаётся, где отпустили (для видео).
+  const U0 = 0.05, BACK = params.get('rollback') !== '0';
+  const RH = { el: document.getElementById('rollhint'), t: -1, n: 0, quiet: 0, clock: 0, done: !SITE || +(params.get('ru') ?? 0) > 0.2 };
+  const _a = new THREE.Vector3(), _b = new THREE.Vector3();
+  const rollHint = (dt, held) => {
+    RH.clock += dt; if (down) RH.quiet = RH.clock;
+    if (held && RH.t >= 0) { RH.t = -1; RH.el.classList.remove('on'); }
+    if (held) RH.done = true;
+    const r = canvas.getBoundingClientRect();
+    group.localToWorld(_a.set(-W / 2, 0, 0)).project(cam); group.localToWorld(_b.set(W / 2, 0, 0)).project(cam);
+    const wide = Math.abs(_b.x - _a.x) / 2 > 0.22 && _a.z < 1 && _b.z < 1;
+    if (RH.t < 0) {
+      if (RH.done || RH.n >= 3 || !wide || ROLL.u > 0.12 || RH.clock - RH.quiet < 1.2 || RH.clock - (RH.end ?? -9) < 6) return;
+      RH.t = 0; RH.n++; RH.el.classList.add('on');
+    }
+    RH.t += dt;
+    if (RH.t < 1.6) ROLL.uT = U0 + 0.17 * THREE.MathUtils.smoothstep(RH.t, 0.3, 1.6);       // глаз тянет вниз — рулон за ним
+    if (RH.t > 2.6) RH.el.classList.remove('on');
+    if (RH.t > 3.4) { RH.t = -1; RH.end = RH.clock; }
+    group.localToWorld(_a.set(0, -ROLL.u - 0.05, 0.05)).project(cam);                     // у низа рулона
+    RH.el.style.transform = `translate(${(_a.x * .5 + .5) * r.width - 8.5}px, ${(-_a.y * .5 + .5) * r.height + 4}px)`;
+  };
+  // ВИДЕО-ПЕТЛЯ «РАЗВЕРНУЛИ — САМА СВЕРНУЛАСЬ» (15 окт, её слово: «как бы мы разворачиваем работу, она сворачивается,
+  // и потом петля — снова разворачивается»). В видео рулон идёт не от пальца, а по часам петли — поэтому последний
+  // кадр сходится с первым точно: лежит свёрнутый → тянут вниз (2,4 с) → висит развёрнутый → сам катится вверх
+  // (медленно в начале, как бумага, что только отпустили) → снова свёрнут. ?vroll=0 — без этого (как раньше, ?ru=).
+  const VR = params.get('vroll') !== '0', UMAX = +(params.get('vumax') ?? 0.66);
+  const vidU = t => { const T = VID_T, p = ((t % T) + T) % T / T, S = THREE.MathUtils.smootherstep;
+    const a = 0, b = 0.24, c = 0.40;                       // доли петли: начало хода вниз (сразу — её слово), развёрнут, ход вверх
+    return p < a ? U0 : p < b ? U0 + (UMAX - U0) * S(p, a, b) : p < c ? UMAX : p < 0.94 ? UMAX - (UMAX - U0) * S(p, c, 0.94) : U0; };
+  ROLL.step = dt => {
+    ROLL.hang();
+    if (VID_T && VR) { RH.done = true; ROLL.uT = ROLL.u = vidU(clock); shape(ROLL.u); return; }
+    const held = !!(down && down.roll);
+    rollHint(dt, held);
+    ROLL.idle = held || RH.t >= 0 && RH.t < 1.6 ? 0 : (ROLL.idle ?? 0) + dt;   // не .back — это обратная сторона листа (меш)
+    if (BACK && ROLL.uT > U0 && ROLL.idle > 0) ROLL.uT = Math.max(U0, ROLL.uT - dt * 0.075 * Math.min(1, ROLL.idle / 0.8));
+    if (Math.abs(ROLL.uT - ROLL.u) < 1e-5) return;
+    ROLL.u += (ROLL.uT - ROLL.u) * (1 - Math.exp(-dt * 10));             // рулон тяжёлый — идёт за пальцем с малой оттяжкой
+    shape(ROLL.u);
+  };
+  ROLL.pull = dy => { ROLL.uT = THREE.MathUtils.clamp(ROLL.uT + dy, 0.03, L - 0.03); };
+  const add = () => {
+    if (!emptyState[k0] || !emptyState[k1]) return setTimeout(add, 50);
+    empties[k0].add(group);
+    for (const k of [k0, k1]) {
+      const st = emptyState[k], Lr = Math.hypot(Z_JAW, LIP_OV);
+      st.grip = Math.asin((TH / 2) / Lr) + Math.atan(LIP_OV / Z_JAW);
+      st.kw = SW_K[k0 + 3] ** 2 * 0.62; st.sail = 2.2 * +(params.get('rsail') ?? 1.7);   // 15 окт ночью: «чуть сильнее ветер для 33 слёз»
+    }
+  };
+  setTimeout(add, 0);
+  window.__roll = ROLL;
+}
+const _rollW = new THREE.Vector3();
+function hitRoll(e) {
+  if (!ROLL) return false;
+  ray.setFromCamera(toNdc(e), cam); return ray.intersectObjects([ROLL.front, ROLL.back], false).length > 0;
 }
 // «ДВЕ ВАЗЫ» ОТ КАСАНИЯ КАЧАЮТСЯ (Анныч, 12 окт вечером: «нажмёшь — она просто покачается в воздухе,
 // сворачивать не надо»). Касание толкает прищепку с листом от себя; три секунды после толчка воздух гасит
@@ -3352,6 +3816,35 @@ const tagVReady = !(TAG && VAZY) ? Promise.resolve() : tagReady.then(() => {
   st.grip = Math.asin((kind.t / 2) / Lr) + Math.atan(LIP_OV / Z_JAW); st.kw = SW_K[k + 3] ** 2 * kind.kw; st.sail = kind.sail;
   TAGV = c; window.__tagV = c;
 });
+// ТАБЛИЧКА «33 СЛЁЗ» (15 окт; данные — её карточка на Saatchi: 2023, чернила, бумага, 19,7 × 27,6 дюйма = 50 × 70 см;
+// нарисована в Казахстане; хлопок — её слово). Цена 275 € = $300, как на Saatchi (моё предложение ей — ждёт её «да»).
+// Цифр 1 3 6 8 9 в её шрифте нет — 3 пишется З (как в табличке ваз). Ё в шрифте нет — СЛЕЗЫ.
+let TAGT = null;
+const tagTReady = !(TAG && SLEZY) ? Promise.resolve() : tagVReady.then(() => {
+  const D = t => t.replace(/1/g, 'I').replace(/3/g, 'З').replace(/6/g, 'Б');
+  const N = 1120, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, N, N); g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
+  const put = (t, px, x, y, al, tr) => { g.font = `${px}px AnnaBortnikova`; t = D(t);
+    const gl = ch => ch === '’' ? ',' : ch, dy = ch => ch === '’' ? -0.6 * px : 0;
+    let w = -tr; for (const ch of t) w += g.measureText(gl(ch)).width + tr;
+    let xx = al === 'c' ? x - w / 2 : al === 'r' ? x - w : x; for (const ch of t) { g.fillText(gl(ch), xx, y + dy(ch)); xx += g.measureText(gl(ch)).width + tr; } };
+  put('«33 СЛЕЗЫ»', 82, N / 2, 312, 'c', 5);
+  put(params.get('avtor') ?? 'АННА Д’АРЛЕТ', 58, N / 2, 446, 'c', 3);
+  const wid = (t, px, tr) => { g.font = `${px}px AnnaBortnikova`; let w = -tr; for (const ch of D(t)) w += g.measureText(ch).width + tr; return w; };
+  let fs = 46; while (fs > 28 && Math.max(wid('РАЗМЕР:', fs, 4) + wid('50 × 70 см', fs, 4), wid('МАТЕРИАЛЫ:', fs, 4) + wid('БУМАГА,', fs, 4),
+                                         wid('ГОД:', fs, 4) + wid('КАЗАХСТАН, 2023', fs, 4)) > 918 - 205 - 40) fs -= 1;
+  put('РАЗМЕР:', fs, 205, 598, 'l', 4); put('50 × 70 см', fs, 918, 598, 'r', 4);
+  put('МАТЕРИАЛЫ:', fs, 205, 598 + fs * 1.85, 'l', 4); put('БУМАГА,', fs, 918, 598 + fs * 1.85, 'r', 4); put('ЧЕРНИЛА', fs, 918, 598 + fs * 3.4, 'r', 4);
+  put('ГОД:', fs, 205, 598 + fs * 5.25, 'l', 4); put('КАЗАХСТАН, 2023', fs, 918, 598 + fs * 5.25, 'r', 4);
+  const save = [TAG.img.text, TAG.price], kind = TAG_KINDS[TAG.kind];
+  TAG.img.text = cv; TAG.price = D(params.get('slezyc') ?? '275 €');
+  const c = tagBuild(kind, 60 + TAG.kind); [TAG.img.text, TAG.price] = save;
+  const k = X_EMPTY.indexOf(X_TAG_T); c.k = k;
+  c.group.position.set(0, -EYE_UP - Z_JAW + TAG.BITE, 0); empties[k].add(c.group);
+  const st = emptyState[k], Lr = Math.hypot(Z_JAW, LIP_OV);
+  st.grip = Math.asin((kind.t / 2) / Lr) + Math.atan(LIP_OV / Z_JAW); st.kw = SW_K[k + 3] ** 2 * kind.kw; st.sail = kind.sail;
+  TAGT = c; window.__tagT = c;
+});
 // Пока выбираем — пять кнопок внизу; касание — вариант и камера на бумажку.
 function tagPicker() {
   const bar = document.createElement('div'); bar.id = 'tagpick';
@@ -3467,10 +3960,10 @@ function tagStep(dt) {
 function hitTag(e) {
   if (!TAG || !TAG.group) return false;
   ray.setFromCamera(toNdc(e), cam);
-  const h = ray.intersectObjects([...TAG.meshes, ...(TAGV ? TAGV.meshes : [])], false)[0];
+  const h = ray.intersectObjects([...TAG.meshes, ...(TAGV ? TAGV.meshes : []), ...(TAGT ? TAGT.meshes : [])], false)[0];
   if (!h) return false;
-  tagHitK = TAGV && TAGV.meshes.includes(h.object) ? TAGV.k : TAG.k;     // какую из двух табличек тронули
-  if ((h.object !== TAG.front && !(TAGV && h.object === TAGV.front)) || !h.uv) return 'card';
+  tagHitK = TAGV && TAGV.meshes.includes(h.object) ? TAGV.k : TAGT && TAGT.meshes.includes(h.object) ? TAGT.k : TAG.k;     // какую из табличек тронули
+  if ((h.object !== TAG.front && !(TAGV && h.object === TAGV.front) && !(TAGT && h.object === TAGT.front)) || !h.uv) return 'card';
   const dx = (h.uv.x - TAG.btn.u) * TAG.W, dy = (h.uv.y - TAG.btn.v) * TAG.H;
   return Math.hypot(dx, dy) < TAG.btn.r * 1.8 ? 'btn' : 'card';
 }
@@ -3480,7 +3973,7 @@ function openDirect() {                                 // глаз — кноп
 }
 for (const [k, p] of Object.entries({ readyTex, clampReady, domReady, columnsReady, tagReady })) p.then(() => tm(k));
 tm('модуль прочитан');
-const ready = Promise.all([readyTex, clampReady, domReady, columnsReady, tagReady, tagVReady]);    // страница ждёт и картину, и зажим
+const ready = Promise.all([readyTex, clampReady, domReady, columnsReady, tagReady, tagVReady, tagTReady]);    // страница ждёт и картину, и зажим
 
 // ---------- Механика: по законам ----------
 // Брусок висит лёжа на двух зажимах, за свободный край крайней палочки. Касание отпускает его,
@@ -3866,7 +4359,35 @@ const C_WIND = 1.4;
 const SITE_WIND = [[0.21, 0.080, 0.0], [0.34, 0.052, 1.3], [0.55, 0.032, 0.4], [0.89, 0.014, 2.2]];
 let windCalm = 1, windCalmWant = 1, windCalmT = 0;
 const calmFor = z => 1 / (1 + 0.35 * Math.max(0, z - 1.3));
+// ВИДЕО-ПЕТЛЯ ДЛЯ РИЛС (15 окт ночью, её слово: «для рилс в инст 7 секунд, но с петлёй, чтобы пересматривали»):
+// ?vid=7 — всё движение повторяется ровно через 7 с: порывы — 1-я…4-я гармоники петли, рябь — к ближайшей кратной,
+// у растений и листьев — то же (P.setLoop), бабочки летят по замкнутому пути. Последний кадр сходится с первым.
+// ?vidw= — сила ветра в видео (её слово: «может, чуть сильнее ветер»).
+const VID_T = +(params.get('vid') ?? 0), VID_W = +(params.get('vidw') ?? 1.5);
+// КАМЕРА ВИДЕО (15 окт, её слово: «палка с левой стороны — параллельно левому краю на видео»). Камера смотрит строго
+// горизонтально (без наклона вверх-вниз — тогда всё вертикальное стоит вертикально, как на архитектурном снимке);
+// ?vcam=x,y,z — где стоит глаз, ?vyaw= — поворот (рад, + влево), ?vfov= — угол по вертикали, ?vshift= — сдвиг кадра
+// вверх-вниз (доля кадра) без наклона, как у объектива со сдвигом.
+let VCAM = params.get('vcam')?.split(',').map(Number);
+if (VCAM) VCAM.push(+(params.get('vyaw') ?? 0), +(params.get('vfov') ?? 0), +(params.get('vshift') ?? 0), 0);
+// для проверки крупно: __vcam(x, y, z, поворот, угол, сдвиг, наклон) — без перезагрузки; __vcam() — выключить
+window.__vcam = (...a) => { VCAM = a.length ? a : null; };
+function vidCam() {
+  if (!VCAM) return;
+  cam.position.set(VCAM[0], VCAM[1], VCAM[2]); cam.rotation.set(VCAM[6] || 0, VCAM[3] || 0, 0, 'YXZ');
+  const f = VCAM[4] || cam.fov, sh = VCAM[5] || 0;
+  if (cam.fov !== f) { cam.fov = f; cam.updateProjectionMatrix(); }
+  const W = renderer.domElement.width, H = renderer.domElement.height;
+  if (sh) cam.setViewOffset(W, H, 0, -sh * H, W, H); else if (cam.view) cam.clearViewOffset();
+  cam.updateMatrixWorld();
+}
 function windSig(x = 0, adm = 1) {
+  if (VID_T) {
+    const t = clock - x / C_WIND, w0 = 2 * Math.PI / VID_T; let v = 0;
+    SITE_WIND.forEach(([f, a, ph], i) => { v += a * Math.sin(t * w0 * (i + 1) + ph); });
+    for (const [f, a, ph] of TURB) v += adm * a * 0.3 * Math.sin(t * w0 * Math.max(1, Math.round(f * VID_T)) + ph);
+    return WIND * VID_W * v;
+  }
   const loop = LOOP && lp.on, t = (loop ? clock - lp.tw0 : clock) - x / C_WIND;
   const w = f => loop ? 2 * Math.PI * Math.max(1, Math.round(f * LP_T / (2 * Math.PI))) / LP_T : f;
   let v = 0;
@@ -5202,6 +5723,7 @@ function pose() {
   });
   empties.forEach((c, k) => {
     const st = emptyState[k];
+    if (ROLL && k === ROLL.k1) { st.sw = emptyState[ROLL.k0].sw; st.dsw = emptyState[ROLL.k0].dsw; }   // лист «33 слёз» держат обе
     // вся сборка качается вокруг оси нитки: T(нитка) · Rx(sw) · T(0, −HANG_PEG, 0)
     c.matrix.makeTranslation(X_EMPTY[k], ropeY(X_EMPTY[k]), PZ + ropeZ(X_EMPTY[k]))
       .multiply(mTmp.makeRotationX(st.sw)).multiply(mTmp2.makeTranslation(0, -HANG_PEG, 0));
@@ -5333,6 +5855,7 @@ function clearance(x, y, z) {                           // сколько ещё
   // раз попав внутрь, ходила сквозь куст свободно (её слово: «не надо, чтобы через куст проходил человек»).
   // Теперь внутри — минус, а куст для камеры — купол по его очертанию, а не коробка.
   if (bushDome) c = Math.min(c, bushDome(_q));
+  for (const f of bedDomes) c = Math.min(c, f(_q));
   for (const b of stakeBoxes) c = Math.min(c, boxSd(b, _q));
   return c;
 }
@@ -5502,6 +6025,10 @@ function pixAdapt(dt) {
 window.__pix = () => ({ budget: pixBudget, ratio: renderer.getPixelRatio() });
 function resize() {
   if (CAPTURE) return;
+  if (VID_T) {                                          // видео: всегда 1080 × 1920 точек, какое бы ни было окно
+    const w = +params.get('w') || 1080, h = +params.get('h') || 1920;
+    renderer.setPixelRatio(1); renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); return;
+  }
   const w = canvas.clientWidth, h = canvas.clientHeight;
   // НА КОМПЬЮТЕРЕ ЗАВИСАЛО (Анныч, 10 окт вечером): большой экран при двойной плотности — 5 млн точек
   // на кадр, вчетверо больше телефона, и каждую ещё размывать. Потолок — 1,5 млн точек: телефон
@@ -5604,7 +6131,8 @@ canvas.addEventListener('pointerdown', e => {
   const tagHit = hitTag(e), base = { id: e.pointerId, x: e.clientX, y: e.clientY, az: view.azT, el: view.elT, moved: false, look: true };
   if (tagHit === 'btn') { TAG.pressT = clock; down = { ...base, tag: true }; return; }   // глаз-кнопка
   if (tagHit === 'card') { down = { ...base, card: true }; return; }                     // бумажка: тычок качает её, вести — обход
-  { const v = hitVase(e); if (v >= 0) { down = { ...base, card: true, vase: v }; return; } }   // вазы: тычок качает, вести — обход
+  { const v = hitVase(e); if (v >= 0) { down = { ...base, card: true, vase: v }; return; } }
+  if (hitRoll(e)) { down = { ...base, roll: true, py: e.clientY, look: false }; return; }    // «33 слезы»: тянешь — разворачивается   // вазы: тычок качает, вести — обход
   if (peonyHit(e)) { down = { id: e.pointerId, bush: true, moved: true }; return; }            // куст: ведёшь — клонится
   if (nearTab(e) >= 0) { unbelt(); down = { tab: true }; return; }    // потянули язычок — ремешки разошлись
   // НИТКУ РУКОЙ НЕ ТРОГАЮТ (Анныч, 2 октября). Зажимы и прищепки пальцу больше не отвечают:
@@ -5668,6 +6196,9 @@ canvas.addEventListener('pointermove', e => {
     down.px = e.clientX; down.py = e.clientY;
   } else if (down && down.clip !== undefined) {
     pointerNear = clipPress = down.clip;
+  } else if (down && down.roll) {                           // рулон: ход пальца вниз — столько же листа вниз, вид стоит
+    const d = cam.position.distanceTo(ROLL.group.getWorldPosition(_rollW)), k = 2 * d * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2)) / canvas.clientHeight;
+    ROLL.pull((e.clientY - down.py) * k); down.py = e.clientY; down.moved = true;
   } else if (down && down.bush) {                           // по кусту — его клонит обработчик куста, вид стоит
   } else if (down) {
     const dx = e.clientX - down.x, dy = e.clientY - down.y;
@@ -5838,6 +6369,7 @@ const FLIPH = { t0: -1, done: false, taps: 0 }, ROLLH = { t0: -1, done: false, p
 let hintEndAt = 0, hintMode = '', modeSince = 0, workAt = nowMs(), menuAt = 0;
 const hintOver = now => { hintEndAt = now; eyeHint.classList.remove('on', 'tap'); };
 function placeEyeHint(now) {
+  if (VID_T) return;                                         // в видео — без подсказок: работа не двигается сама
   if (mode === 'turning' || mode === 'shown') FLIPH.done = true;           // перевернул сам — не учить
   // 11 окт днём (её слово): подсказки и тогда, когда водишь пальцами туда-сюда, отдаляешься, — человек
   // ходит, а что работу можно развернуть, не понял. Счёт и отмену теперь даёт только палец ПО РАБОТЕ
@@ -5971,7 +6503,7 @@ function tick(dt, now) {
   { const p = cam.position; INSIDE.value = p.x > -1.73 && p.x < 3.83 && p.y > -1.63 && p.z > -1.65 ? 1 : 0; }   // в зале или перед разрезом
   const sub = Math.max(1, Math.ceil(dt * 480));
   for (let k = 0; k < sub; k++) step((reduceMotion ? 2 : 1) * dt / sub);
-  beltStep(); poseDt = dt; pose(); reflexStep(); reflStep(); placeCamera(dt); placeLabel(); placeEyeHint(now); lampStep(dt); peonyStep(dt); butterflyStep(dt);
+  beltStep(); poseDt = dt; pose(); reflexStep(); reflStep(); placeCamera(dt); vidCam(); placeLabel(); placeEyeHint(now); lampStep(dt); peonyStep(dt); butterflyStep(dt); ROLL?.step(dt);
 }
 
 // ---------- Щуп «сквозь себя»: ничто не режет работу ----------
@@ -6074,6 +6606,20 @@ function sweep(steps = 2400, every = 20) {
 
 // для проверки снаружи
 window.__holst = {
+  // запечь таблички: карты цвета и нормалей → POST на приёмник (холст/бирка/приёмник.py), там — в webp без потерь
+  async bakeTags(url = 'http://localhost:8799/save') {
+    const out = [];
+    for (const [n, c] of [[TAG.kind, tagCache[TAG.kind]], [50 + TAG.kind, TAGV], [60 + TAG.kind, TAGT]]) {
+      if (!c) continue; const m = c.front.material;
+      for (const [k, t] of [['цвет', m.map], ['нормаль', m.normalMap]]) {
+        if (!t.image.toBlob) continue;                       // уже запечённая — картинка, не холст
+        const blob = await new Promise(r => t.image.toBlob(r, 'image/png'));
+        const r = await fetch(`${url}?name=${encodeURIComponent(`запечено-${TAG_BAKE_V}-${n}-${k}`)}`, { method: 'POST', body: blob });
+        out.push([n, k, r.status, blob.size]);
+      }
+    }
+    return out;
+  },
   // прогон без экрана: те же кадры по 1/60 с, что и вживую; cb(t) — между кадрами (палец)
   sim(sec, cb) { for (let t = 0; t < sec; t += 1 / 60) { simOff += 1000 / 60; if (cb) cb(t); tick(1 / 60, nowMs()); cam.updateMatrixWorld(); } drawScene(); },
   // палец без экрана (проверка): провести от середины работы на (dx, dy) точек за sec секунд прогона
@@ -6630,4 +7176,36 @@ ready.then(() => {
   resize(); pose(); placeCamera(1); reflStep(true); requestAnimationFrame(t => { last = t; frame(t); });
   window.__frame = frame;                         // проверка в скрытой вкладке: кадры вручную (rAF там спит)
 });
+// АВТОСЪЁМКА ВИДЕО (15 окт): ?autocap=<адрес приёмника> — страница, когда всё выросло, сама гонит петлю (?vid=) 20 с
+// для разгона (растения и нитка входят в ритм), потом снимает ровно одну петлю по 1/30 с и шлёт кадры jpeg на приёмник
+// (f000.jpg…, в конце done.txt). Для невидимого Chrome: в нём ничто не притормаживает.
+// ЗАМЕР РЫВКОВ (?jerk=<метка>, вместе с autocap): после разгона одна петля без картинки — наибольшее и среднее
+// ускорение наклона стеблей каждой грядки; на приёмник J-<метка>.json.
+if (params.has('jerk') && params.has('autocap') && VID_T) (async () => {
+  await Promise.all(veilWait); await new Promise(r => setTimeout(r, 2000));
+  window.requestAnimationFrame = () => 0;
+  const H = window.__holst, url = params.get('autocap'), T0 = Math.ceil((clock + 20) / VID_T) * VID_T;
+  while (clock < T0 - 0.05) H.sim(Math.min(0.5, T0 - 0.04 - clock));
+  const beds = { эхинацея: window.__ehin, вербена: window.__verb, пион: window.__peony }, R = {};
+  for (const n in beds) if (beds[n]) { const S = beds[n].dbg().S.filter(s => s.live); R[n] = { S, h: S.map(() => []) }; }
+  for (let i = 0; i < VID_T * 60; i++) { H.sim(1 / 60 - 1e-6); for (const n in R) R[n].S.forEach((s, j) => R[n].h[j].push([s.x, s.z])); }
+  const out = {};
+  for (const n in R) { let mx = 0, sum = 0, cnt = 0, big = 0; const all = [];
+    R[n].h.forEach(h => { for (let t = 2; t < h.length; t++) { const a = Math.hypot(h[t][0] - 2 * h[t - 1][0] + h[t - 2][0], h[t][1] - 2 * h[t - 1][1] + h[t - 2][1]) * 3600; all.push(a); mx = Math.max(mx, a); sum += a; cnt++; } });
+    all.sort((x, y) => x - y); out[n] = { макс: +mx.toFixed(2), среднее: +(sum / cnt).toFixed(3), p999: +all[Math.floor(all.length * 0.999)].toFixed(2) }; }
+  await fetch(url + 'J-' + params.get('jerk') + '.json', { method: 'POST', body: 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(JSON.stringify(out)))) });
+})();
+else if (params.has('autocap') && VID_T) (async () => {
+  await Promise.all(veilWait); await new Promise(r => setTimeout(r, 2000));
+  window.requestAnimationFrame = () => 0;
+  const H = window.__holst, c = renderer.domElement, url = params.get('autocap') || 'http://127.0.0.1:8799/';
+  const N = Math.round(VID_T * 30), T0 = Math.ceil((clock + 20) / VID_T) * VID_T, q = +(params.get('capq') ?? 0.93);
+  const send = (n, d) => fetch(url + n, { method: 'POST', body: d });
+  while (clock < T0 - 0.05) H.sim(Math.min(0.5, T0 - 0.04 - clock));
+  for (let k = 0; k < N; k++) {
+    const n = Math.round((T0 + k / 30 - clock) * 60); H.sim(n > 0 ? n / 60 - 1e-6 : 0);
+    await send('f' + String(k).padStart(3, '0') + '.jpg', c.toDataURL('image/jpeg', q));
+  }
+  await send('done.txt', 'data:text/plain;base64,' + btoa(String(N)));
+})();
 </script>
