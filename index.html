@@ -1788,7 +1788,12 @@ const X_VAZY = [0.80, 1.00];
 const X_TAG_V = 1.12;
 // табличка «33 слёз» — на своей прищепке справа от листа (лист 50 см: x −1,06…−0,56), 15 окт
 const X_TAG_T = -0.50, SLEZY = SITE && params.get('slezy') !== '0';
-const X_EMPTY = params.has('loop') ? [-0.98, -0.64, 0.43, 0.468, 0.98] : SITE ? [-0.98, -0.64, 0.425, 0.49, ...(VAZY ? [...X_VAZY, X_TAG_V] : []), ...(SLEZY ? [X_TAG_T] : [])] : [-0.98, -0.64, 0.48, 0.98];
+// МАРУСИН «БАБУЛИН ДОМ, ИЛИ ОСЕННИЙ ДОМИК» (17 окт, её слово: «справа от двух ваз, на такие же прищепки, что и две
+// вазы… слева пару пустых прищепок… размер соблюдаем»). Лист 42 × 30 см лёжа: x 1,37…1,79, держат две прищепки
+// в 7 см от краёв; слева от него пара пустых — вплотную, как у «Первого моря»; табличка справа. ?baba=0 — без неё.
+const BABA = SITE && params.get('baba') !== '0';
+const X_BABA = [1.44, 1.72], X_BABA_E = [1.24, 1.305], X_TAG_B = 1.86;
+const X_EMPTY = params.has('loop') ? [-0.98, -0.64, 0.43, 0.468, 0.98] : SITE ? [-0.98, -0.64, 0.425, 0.49, ...(VAZY ? [...X_VAZY, X_TAG_V] : []), ...(SLEZY ? [X_TAG_T] : []), ...(BABA ? [...X_BABA_E, ...X_BABA, X_TAG_B] : [])] : [-0.98, -0.64, 0.48, 0.98];
 const X_OUT = X_C[X_C.length - 1];
 const siteBase = x => { const b = SITE ? ROPE_A : 1.5; return ROPE_ABOVE - SAG * (1 - (x / b) ** 2) + SAG * (1 - (X_OUT / b) ** 2); };
 // ЗОНА: от крайней левой до крайней правой прищепки нитка — ровно сайтовая (все касания зажимов, колец,
@@ -2875,15 +2880,18 @@ let pointerNear = -1;                                   // над каким з�
 // в жизни нет вовсе. На телефоне наведения не существует в принципе. Теперь: пальцы
 // (или кнопка мыши) жмут — раскрывается; отпустили — закрылся.
 let clipPress = -1;
-const spin0 = [1.9, -0.7, 2.8, 0.4, -2.1, 1.2, 0.9, -1.5, 2.3, -0.4, 1.4, -1.1];   // у каждого кольца разрез смотрит в свою сторону
+const spin0 = [1.9, -0.7, 2.8, 0.4, -2.1, 1.2, 0.9, -1.5, 2.3, -0.4, 1.4, -1.1, 0.6, -1.8, 2.5, -0.2, 1.7, -2.6, 0.3, -1.3];   // у каждого кольца разрез смотрит в свою сторону
+// 17 окт, её слово: «нет колечек у прищепок». Чисел было 12, прищепок с Марусиным листом стало больше: у лишних
+// поворот кольца выходил «не число», и кольцо пропадало целиком. Теперь по кругу — сколько бы прищепок ни повесили.
+const spinAt = k => spin0[k % spin0.length];
 const clipState = clips.map((c, k) => {
   const st = mkState(true, BN_TH_HOLD, BN_TH_MAX * 0.97, BN_TH_MAX, HANG);
-  st.spin = st.spin0 = spin0[k]; return st;
+  st.spin = st.spin0 = spinAt(k); return st;
 });
 // У каждой прищепки своя частота, ±5 %: латунь отлита и согнута по-разному, и висят они
 // на чуть разной длине. Одинаковые качались бы в ногу, как солдаты.
-const SW_K = [1.00, 0.95, 1.04, 0.97, 1.05, 0.98, 1.02, 0.96, 1.03, 0.97, 1.01, 0.99];
-const emptyState = empties.map((c, k) => { const st = mkState(false); st.spin = st.spin0 = spin0[k + 3];
+const SW_K = [1.00, 0.95, 1.04, 0.97, 1.05, 0.98, 1.02, 0.96, 1.03, 0.97, 1.01, 0.99, 1.04, 0.96, 1.02, 0.98, 1.03];   // по одной на прищепку (+3)
+const emptyState = empties.map((c, k) => { const st = mkState(false); st.spin = st.spin0 = spinAt(k + 3);
   st.rigid = true; st.kw = SW_K[k + 3] ** 2; return st; });
 clipState.forEach((st, k) => { st.kw = SW_K[k] ** 2; });
 // КОЛЬЦО СВЯЗАНО ДВУМЯ КАСАНИЯМИ И НЕ МОЖЕТ С НИТКИ СЛЕЗТЬ.
@@ -3489,6 +3497,37 @@ if (VAZY) {
     setTimeout(add, 0);
   });
 }
+// Марусин лист: лицо и оборот — её фото 17 окт (masters/babulin-dom, вырезка _вырезка-с-зелёного.py; оборот — пончики,
+// чьи — неизвестно, её слово: «оставляем, это наша фишка — работу можно рассмотреть со всех сторон»). Гуашь на бумаге —
+// плотнее акварельного листа. Верх в двух губках, лист клонится с ниткой, как «33 слезы»; прикус слева глубже, чтобы
+// на подъёме нитки вправо лист висел почти ровно (как у «33 слёз» по её «слишком криво»). ?bl= ?br= — мм над губками.
+let BABA_S = null;
+if (BABA) {
+  const T_B = 0.0004, W_B = 0.42, H_B = 0.30, ldr = new THREE.TextureLoader();
+  const k0 = X_EMPTY.indexOf(X_BABA[0]), k1 = X_EMPTY.indexOf(X_BABA[1]);
+  const tex = f => { const t = ldr.load(`babulin-dom-${f}.webp`); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+  const mk = (map, back) => { const g = new THREE.PlaneGeometry(W_B, H_B); g.translate(0, -H_B / 2, 0);
+    if (back) { g.rotateY(Math.PI); g.translate(0, 0, -T_B / 2); } else g.translate(0, 0, T_B / 2);
+    const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map, roughness: 0.9, alphaTest: 0.5 }));
+    m.castShadow = m.receiveShadow = true; return m; };
+  const grp = new THREE.Group(); grp.add(mk(tex('face'), false), mk(tex('back'), true)); grp.name = 'babulin-dom';
+  const TIP = -EYE_UP - Z_JAW, EL = +(params.get('bl') ?? 11) / 1000, ER = +(params.get('br') ?? 2) / 1000;
+  BABA_S = { k0, k1, grp, hang() {
+    const dx = X_BABA[1] - X_BABA[0], dy = ropeY(X_BABA[1]) - ropeY(X_BABA[0]) + ER - EL;
+    grp.rotation.z = Math.atan2(dy, dx); grp.position.set(dx / 2, TIP + EL + dy / 2, (ropeZ(X_BABA[1]) - ropeZ(X_BABA[0])) / 2);
+  } };
+  const add = () => {
+    if (!emptyState[k0] || !emptyState[k1]) return setTimeout(add, 50);
+    empties[k0].add(grp); BABA_S.hang();
+    for (const k of [k0, k1]) {
+      const st = emptyState[k], Lr = Math.hypot(Z_JAW, LIP_OV);
+      st.grip = Math.asin((T_B / 2) / Lr) + Math.atan(LIP_OV / Z_JAW);
+      st.kw = SW_K[k0 + 3] ** 2 * 0.62; st.sail = 2.2;
+    }
+  };
+  setTimeout(add, 0);
+  window.__baba = BABA_S;
+}
 // «33 СЛЕЗЫ» — РУЛОНОМ (15 окт, её слово: «у меня она в рулоне — так рулончиком и подвешиваем; человек пальцем её
 // разворачивает… когда развернёт, пусть останется развёрнутой, а то сложно рассмотреть»; «розовым плотным кверху,
 // вниз к белому»; фото рулона в чате 15 окт). Бумага 100% хлопок, плотная, лист 50 × 70 см (по пропорции скана и по
@@ -3627,15 +3666,15 @@ function hitRoll(e) {
 // сворачивать не надо»). Касание толкает прищепку с листом от себя; три секунды после толчка воздух гасит
 // качание мягче (лист — парус, медленно успокаивается), потом — как прежде.
 function hitVase(e) {
-  if (!VAZY) return -1;
+  if (!VAZY && !BABA) return -1;
   ray.setFromCamera(toNdc(e), cam);
-  const ms = []; for (const n of ['vase-1', 'vase-2']) { const g = scene.getObjectByName(n); if (g) ms.push(...g.children.filter(o => o.isMesh)); }
+  const ms = []; for (const n of ['vase-1', 'vase-2', 'babulin-dom']) { const g = scene.getObjectByName(n); if (g) ms.push(...g.children.filter(o => o.isMesh)); }
   const h = ray.intersectObjects(ms, false)[0];
-  return !h ? -1 : h.object.parent.name === 'vase-1' ? 0 : 1;
+  return !h ? -1 : ['vase-1', 'vase-2', 'babulin-dom'].indexOf(h.object.parent.name);
 }
 function tapVase(i) {
-  const k = X_EMPTY.indexOf(X_VAZY[i]), st = emptyState[k], z = empties[k].matrixWorld.elements[14];
-  st.dsw += (cam.position.z > z ? 1 : -1) * 2.6; st.softT = clock + 3;
+  const k = X_EMPTY.indexOf(i === 2 ? X_BABA[0] : X_VAZY[i]), st = emptyState[k], z = empties[k].matrixWorld.elements[14];
+  st.dsw += (cam.position.z > z ? 1 : -1) * (i === 2 ? 1.6 : 2.6); st.softT = clock + 3;   // Марусин лист втрое шире — толкается тяжелее
   if (i === 0) butterflyGo();                              // бабочка сидит на левой — вспархивает
 }
 // ГОЛУБЯНКА НА ЛЕВОЙ ВАЗЕ (Анныч, 12 окт вечером: «пусть сидит на левой вазе сверху, спокойно открывает
@@ -3845,6 +3884,34 @@ const tagTReady = !(TAG && SLEZY) ? Promise.resolve() : tagVReady.then(() => {
   st.grip = Math.asin((kind.t / 2) / Lr) + Math.atan(LIP_OV / Z_JAW); st.kw = SW_K[k + 3] ** 2 * kind.kw; st.sail = kind.sail;
   TAGT = c; window.__tagT = c;
 });
+// ТАБЛИЧКА МАРУСИНОГО ЛИСТА (17 окт, её слова: «Бабулин дом, или Осенний домик» — это название целиком; 42 × 30;
+// 5000 рублей; Маруся; гуашь, бумага; год нынешний, деревня Арлеть). Знака ₽ в её шрифте нет — «РУБ.».
+let TAGB = null;
+const tagBReady = !(TAG && BABA) ? Promise.resolve() : tagTReady.then(() => {
+  const D = t => t.replace(/1/g, 'I').replace(/3/g, 'З').replace(/6/g, 'Б');
+  const N = 1120, cv = document.createElement('canvas'); cv.width = cv.height = N; const g = cv.getContext('2d');
+  g.fillStyle = '#000'; g.fillRect(0, 0, N, N); g.fillStyle = '#fff'; g.textBaseline = 'alphabetic';
+  const put = (t, px, x, y, al, tr) => { g.font = `${px}px AnnaBortnikova`; t = D(t);
+    let w = -tr; for (const ch of t) w += g.measureText(ch).width + tr;
+    let xx = al === 'c' ? x - w / 2 : al === 'r' ? x - w : x; for (const ch of t) { g.fillText(ch, xx, y); xx += g.measureText(ch).width + tr; } };
+  put('«БАБУЛИН ДОМ,', 74, N / 2, +(params.get('bt1') ?? 282), 'c', 4);
+  put('ИЛИ ОСЕННИЙ ДОМИК»', 56, N / 2, +(params.get('bt2') ?? 362), 'c', 3);
+  put('МАРУСЯ', 58, N / 2, 462, 'c', 3);
+  const wid = (t, px, tr) => { g.font = `${px}px AnnaBortnikova`; let w = -tr; for (const ch of D(t)) w += g.measureText(ch).width + tr; return w; };
+  let fs = 46; while (fs > 28 && Math.max(wid('РАЗМЕР:', fs, 4) + wid('42 × 30 см', fs, 4), wid('МАТЕРИАЛЫ:', fs, 4) + wid('БУМАГА,', fs, 4),
+                                         wid('ГОД:', fs, 4) + wid('АРЛЕТЬ, 2026', fs, 4)) > 918 - 205 - 40) fs -= 1;
+  put('РАЗМЕР:', fs, 205, 598, 'l', 4); put('42 × 30 см', fs, 918, 598, 'r', 4);
+  put('МАТЕРИАЛЫ:', fs, 205, 598 + fs * 1.85, 'l', 4); put('БУМАГА,', fs, 918, 598 + fs * 1.85, 'r', 4); put('ГУАШЬ', fs, 918, 598 + fs * 3.4, 'r', 4);
+  put('ГОД:', fs, 205, 598 + fs * 5.25, 'l', 4); put('АРЛЕТЬ, 2026', fs, 918, 598 + fs * 5.25, 'r', 4);
+  const save = [TAG.img.text, TAG.price], kind = TAG_KINDS[TAG.kind];
+  TAG.img.text = cv; TAG.price = D('5000 РУБ.');
+  const c = tagBuild(kind, 70 + TAG.kind); [TAG.img.text, TAG.price] = save;
+  const k = X_EMPTY.indexOf(X_TAG_B); c.k = k;
+  c.group.position.set(0, -EYE_UP - Z_JAW + TAG.BITE, 0); empties[k].add(c.group);
+  const st = emptyState[k], Lr = Math.hypot(Z_JAW, LIP_OV);
+  st.grip = Math.asin((kind.t / 2) / Lr) + Math.atan(LIP_OV / Z_JAW); st.kw = SW_K[k + 3] ** 2 * kind.kw; st.sail = kind.sail;
+  TAGB = c; window.__tagB = c;
+});
 // Пока выбираем — пять кнопок внизу; касание — вариант и камера на бумажку.
 function tagPicker() {
   const bar = document.createElement('div'); bar.id = 'tagpick';
@@ -3960,10 +4027,10 @@ function tagStep(dt) {
 function hitTag(e) {
   if (!TAG || !TAG.group) return false;
   ray.setFromCamera(toNdc(e), cam);
-  const h = ray.intersectObjects([...TAG.meshes, ...(TAGV ? TAGV.meshes : []), ...(TAGT ? TAGT.meshes : [])], false)[0];
+  const h = ray.intersectObjects([...TAG.meshes, ...(TAGV ? TAGV.meshes : []), ...(TAGT ? TAGT.meshes : []), ...(TAGB ? TAGB.meshes : [])], false)[0];
   if (!h) return false;
-  tagHitK = TAGV && TAGV.meshes.includes(h.object) ? TAGV.k : TAGT && TAGT.meshes.includes(h.object) ? TAGT.k : TAG.k;     // какую из табличек тронули
-  if ((h.object !== TAG.front && !(TAGV && h.object === TAGV.front) && !(TAGT && h.object === TAGT.front)) || !h.uv) return 'card';
+  tagHitK = TAGV && TAGV.meshes.includes(h.object) ? TAGV.k : TAGT && TAGT.meshes.includes(h.object) ? TAGT.k : TAGB && TAGB.meshes.includes(h.object) ? TAGB.k : TAG.k;     // какую из табличек тронули
+  if ((h.object !== TAG.front && !(TAGV && h.object === TAGV.front) && !(TAGT && h.object === TAGT.front) && !(TAGB && h.object === TAGB.front)) || !h.uv) return 'card';
   const dx = (h.uv.x - TAG.btn.u) * TAG.W, dy = (h.uv.y - TAG.btn.v) * TAG.H;
   return Math.hypot(dx, dy) < TAG.btn.r * 1.8 ? 'btn' : 'card';
 }
@@ -3973,7 +4040,7 @@ function openDirect() {                                 // глаз — кноп
 }
 for (const [k, p] of Object.entries({ readyTex, clampReady, domReady, columnsReady, tagReady })) p.then(() => tm(k));
 tm('модуль прочитан');
-const ready = Promise.all([readyTex, clampReady, domReady, columnsReady, tagReady, tagVReady, tagTReady]);    // страница ждёт и картину, и зажим
+const ready = Promise.all([readyTex, clampReady, domReady, columnsReady, tagReady, tagVReady, tagTReady, tagBReady]);    // страница ждёт и картину, и зажим
 
 // ---------- Механика: по законам ----------
 // Брусок висит лёжа на двух зажимах, за свободный край крайней палочки. Касание отпускает его,
@@ -5724,6 +5791,7 @@ function pose() {
   empties.forEach((c, k) => {
     const st = emptyState[k];
     if (ROLL && k === ROLL.k1) { st.sw = emptyState[ROLL.k0].sw; st.dsw = emptyState[ROLL.k0].dsw; }   // лист «33 слёз» держат обе
+    if (BABA_S && k === BABA_S.k1) { st.sw = emptyState[BABA_S.k0].sw; st.dsw = emptyState[BABA_S.k0].dsw; }   // и Марусин лист
     // вся сборка качается вокруг оси нитки: T(нитка) · Rx(sw) · T(0, −HANG_PEG, 0)
     c.matrix.makeTranslation(X_EMPTY[k], ropeY(X_EMPTY[k]), PZ + ropeZ(X_EMPTY[k]))
       .multiply(mTmp.makeRotationX(st.sw)).multiply(mTmp2.makeTranslation(0, -HANG_PEG, 0));
@@ -6503,7 +6571,7 @@ function tick(dt, now) {
   { const p = cam.position; INSIDE.value = p.x > -1.73 && p.x < 3.83 && p.y > -1.63 && p.z > -1.65 ? 1 : 0; }   // в зале или перед разрезом
   const sub = Math.max(1, Math.ceil(dt * 480));
   for (let k = 0; k < sub; k++) step((reduceMotion ? 2 : 1) * dt / sub);
-  beltStep(); poseDt = dt; pose(); reflexStep(); reflStep(); placeCamera(dt); vidCam(); placeLabel(); placeEyeHint(now); lampStep(dt); peonyStep(dt); butterflyStep(dt); ROLL?.step(dt);
+  beltStep(); poseDt = dt; pose(); reflexStep(); reflStep(); placeCamera(dt); vidCam(); placeLabel(); placeEyeHint(now); lampStep(dt); peonyStep(dt); butterflyStep(dt); ROLL?.step(dt); BABA_S?.hang();
 }
 
 // ---------- Щуп «сквозь себя»: ничто не режет работу ----------
@@ -6609,7 +6677,7 @@ window.__holst = {
   // запечь таблички: карты цвета и нормалей → POST на приёмник (холст/бирка/приёмник.py), там — в webp без потерь
   async bakeTags(url = 'http://localhost:8799/save') {
     const out = [];
-    for (const [n, c] of [[TAG.kind, tagCache[TAG.kind]], [50 + TAG.kind, TAGV], [60 + TAG.kind, TAGT]]) {
+    for (const [n, c] of [[TAG.kind, tagCache[TAG.kind]], [50 + TAG.kind, TAGV], [60 + TAG.kind, TAGT], [70 + TAG.kind, TAGB]]) {
       if (!c) continue; const m = c.front.material;
       for (const [k, t] of [['цвет', m.map], ['нормаль', m.normalMap]]) {
         if (!t.image.toBlob) continue;                       // уже запечённая — картинка, не холст
@@ -7199,13 +7267,15 @@ else if (params.has('autocap') && VID_T) (async () => {
   await Promise.all(veilWait); await new Promise(r => setTimeout(r, 2000));
   window.requestAnimationFrame = () => 0;
   const H = window.__holst, c = renderer.domElement, url = params.get('autocap') || 'http://127.0.0.1:8799/';
-  const N = Math.round(VID_T * 30), T0 = Math.ceil((clock + 20) / VID_T) * VID_T, q = +(params.get('capq') ?? 0.93);
+  // ?capn= — сколько кадров (1 — снимок для обложки), ?capw= — разгон, с; ?capbg=000 — ещё снимок на чёрном (прозрачность)
+  const N = +(params.get('capn') ?? Math.round(VID_T * 30)), T0 = Math.ceil((clock + +(params.get('capw') ?? 20)) / VID_T) * VID_T, q = +(params.get('capq') ?? 0.93);
   const send = (n, d) => fetch(url + n, { method: 'POST', body: d });
   while (clock < T0 - 0.05) H.sim(Math.min(0.5, T0 - 0.04 - clock));
   for (let k = 0; k < N; k++) {
     const n = Math.round((T0 + k / 30 - clock) * 60); H.sim(n > 0 ? n / 60 - 1e-6 : 0);
     await send('f' + String(k).padStart(3, '0') + '.jpg', c.toDataURL('image/jpeg', q));
   }
+  if (params.has('capbg')) { renderer.setClearColor(+('0x' + params.get('capbg')), 1); H.sim(0); await send('bg.png', c.toDataURL('image/png')); renderer.setClearColor(0xffffff, 1); H.sim(0); await send('wh.png', c.toDataURL('image/png')); }
   await send('done.txt', 'data:text/plain;base64,' + btoa(String(N)));
 })();
 </script>
