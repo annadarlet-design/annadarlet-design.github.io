@@ -1,0 +1,681 @@
+<!doctype html>
+<html lang="ru">
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Кровать с мягким изголовьем</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=PT+Mono&display=swap">
+<style>
+  /* Мастерская ОГО: белый бумажный фон, медовый дуб, берёзовая фанера. Сверху кровать, под ней выбор, цена, размеры, сборка. */
+  :root {
+    --bg: #eeece8;
+    --panel: #f8f7f4;
+    --fg: #25211d;
+    --muted: #6a635b;
+    --line: #d8d2c9;
+    --accent: #95561c;
+    --accent-ink: #ffffff;
+    --sel: #25211d;
+    --font-body: "Golos Text", "Helvetica Neue", Arial, sans-serif;
+    --font-num: "PT Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #181614; --panel: #211e1b; --fg: #ece6de; --muted: #a49b90; --line: #3a352f;
+      --accent: #dc9a5c; --accent-ink: #1b120a; --sel: #ece6de; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #181614; --panel: #211e1b; --fg: #ece6de; --muted: #a49b90; --line: #3a352f;
+    --accent: #dc9a5c; --accent-ink: #1b120a; --sel: #ece6de; color-scheme: dark;
+  }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
+  .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 980px; margin: 0 auto; }
+  header.wrap { padding-block: 14px 6px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0; text-wrap: balance; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  #stage { position: relative; height: 60svh; min-height: 330px; max-height: 720px; touch-action: none; }
+  #stage canvas { display: block; width: 100%; height: 100%; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; }
+  button, .btn { font: inherit; font-size: 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); padding: 7px 12px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"] { background: var(--sel); color: var(--bg); border-color: var(--sel); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .bar { padding-block: 10px 4px; display: grid; gap: 8px; }
+  .bar .lab { color: var(--muted); font-size: 13px; min-width: 64px; }
+  #ar { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 500; }
+  #ar img { width: 18px; height: 18px; }
+  #stepText { color: var(--fg); font-size: 14px; margin: 0; min-height: 3em; max-width: 68ch; }
+  .config { padding-block: 8px 6px; display: grid; gap: 14px; }
+  .opt { display: grid; gap: 6px; }
+  .opt > .lab { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw button { padding: 6px 10px 6px 6px; }
+  .chip { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); flex: none; background-size: cover; background-position: center; }
+  .sw button[aria-pressed="true"] .chip { border-color: var(--accent-ink); }
+  .opt[aria-disabled="true"] { opacity: .45; }
+  .price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  .price b { font-family: var(--font-num); font-weight: 400; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .price span { color: var(--muted); font-size: 13px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-block: 14px 6px; }
+  .fact { background: var(--panel); padding: 10px 12px; min-width: 0; }
+  .fact b { display: block; font-family: var(--font-num); font-weight: 400; font-size: 17px; font-variant-numeric: tabular-nums; }
+  .fact span { color: var(--muted); font-size: 13px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 26px 0 8px; text-wrap: balance; }
+  p.note { color: var(--muted); font-size: 13px; max-width: 68ch; margin: 6px 0 0; }
+  .sheet { display: grid; gap: 14px; }
+  .view { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow-x: auto; }
+  .view h3 { margin: 0 0 4px; font-size: 13px; font-weight: 500; color: var(--muted); }
+  .view svg { display: block; width: 100%; height: auto; min-width: 300px; }
+  .view svg .o { fill: none; stroke: var(--fg); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+  .view svg .f { fill: var(--line); stroke: var(--fg); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+  .view svg .t { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+  .view svg .d { fill: none; stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+  .view svg text { fill: var(--accent); font-family: var(--font-num); }
+  .tablebox { overflow-x: auto; }
+  table { border-collapse: collapse; font-size: 14px; min-width: 540px; }
+  th, td { text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  td.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  ol { padding-left: 20px; margin: 0; display: grid; gap: 6px; max-width: 70ch; }
+  footer { padding-block: 22px 30px; color: var(--muted); font-size: 13px; }
+  @media (min-width: 760px) { .sheet { grid-template-columns: 1fr 1fr; } .sheet .wide { grid-column: 1 / -1; } }
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<header class="wrap">
+  <h1>Кровать с мягким изголовьем</h1>
+  <p>ОГО, Минск · 3D по настоящей кровати · черновик</p>
+</header>
+
+<div id="stage"><div id="loading">Загружаю кровать…</div></div>
+
+<div class="wrap bar">
+  <div class="row" id="views">
+    <button type="button" data-view="q" aria-pressed="true">Как на фото</button>
+    <button type="button" data-view="front" aria-pressed="false">С ног</button>
+    <button type="button" data-view="side" aria-pressed="false">Сбоку</button>
+    <button type="button" data-view="back" aria-pressed="false">Сзади</button>
+    <button type="button" data-view="top" aria-pressed="false">Сверху</button>
+    <a id="ar" class="btn" rel="ar" href="#" hidden><img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='M12 2l9 5v10l-9 5-9-5V7z'/%3E%3Cpath d='M3 7l9 5 9-5M12 12v10'/%3E%3C/svg%3E">В комнату</a>
+  </div>
+  <div class="row" id="steps"><span class="lab">Сборка</span></div>
+  <p id="stepText">Крутить — одним пальцем, приближать — двумя. Шаги сборки — кнопки 1–7, как в инструкции.</p>
+</div>
+
+<section class="wrap config" aria-label="Выбор">
+  <div class="opt"><span class="lab">Изголовье</span>
+    <div class="row" id="head">
+      <button type="button" data-head="h" aria-pressed="true">С мягким изголовьем</button>
+      <button type="button" data-head="n" aria-pressed="false">Без изголовья</button>
+    </div>
+  </div>
+  <div class="opt"><span class="lab">Матрас</span><div class="row" id="size"></div></div>
+  <div class="opt"><span class="lab">Дерево · масло Rubio Monocoat</span><div class="sw" id="wood"></div></div>
+  <div class="opt" id="fabricOpt"><span class="lab">Ткань изголовья · по заказу</span><div class="sw" id="fabric"></div></div>
+  <div class="price"><b id="price">—</b><span id="priceNote"></span></div>
+</section>
+
+<main class="wrap">
+  <div class="facts" id="facts"></div>
+  <p class="note" id="arNote"></p>
+
+  <h2>Лист размеров</h2>
+  <div class="sheet" id="sheet"></div>
+  <p class="note">Все размеры в миллиметрах. Ширина основания — матрас + 60, длина — матрас + 100 (без изголовья + 60), изголовье — матрас + 110, высота 1100: с сайта. Боковина 185 — по рулетке. Остальное снято с фото, точность — в таблице ниже.</p>
+
+  <h2>Сборка — по инструкции ОГО</h2>
+  <ol id="stepList"></ol>
+
+  <h2>Что снято с фото</h2>
+  <div class="tablebox"><table>
+    <thead><tr><th>Деталь</th><th>Размер</th><th>Точность</th><th>Откуда</th></tr></thead>
+    <tbody id="measured"></tbody>
+  </table></div>
+  <p class="note">Мерили медовую кровать с птицами — на фото она под матрас 160. Камеру каждого фото находили по точкам с известным местом (высота 1100, боковина 210–395, длина 2100) и мерили в ней. Кровати на фото разные: у тёмной ножка сужается и изнутри, у медовой — только спереди.</p>
+</main>
+
+<footer class="wrap">Вращать — одним пальцем, приближать — двумя. Цены — с сайта o-go.by на 24 октября 2026, срок от 4 недель. «В комнату» — для айфона, в Safari.</footer>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
+
+// ── выбор
+const WOODS = [
+  { id: 'honey', name: 'Медовый дуб', hex: '#B5661C', k: 1.0 },
+  { id: 'oak', name: 'Дуб', hex: '#C99B63', k: 1.0 },
+  { id: 'dark', name: 'Тёмный дуб', hex: '#4E3626', k: 0.85 },
+  { id: 'maple', name: 'Клён', hex: '#E6CDA0', k: 0.4 },
+];
+const FABRICS = [
+  { id: 'birds', name: 'Узор с птицами', tex: true },
+  { id: 'green', name: 'Тёмно-зелёный бархат', hex: '#46524A', velvet: true },
+  { id: 'greige', name: 'Серо-бежевый', hex: '#9A8A78' },
+  { id: 'grey', name: 'Серый', hex: '#8C8A82' },
+  { id: 'brown', name: 'Коричневый', hex: '#5A4846' },
+  { id: 'mustard', name: 'Горчичный', hex: '#B98A2C' },
+];
+const SIZES = { h: [140, 160, 180, 200], n: [120, 140, 160, 180] };
+const PRICES = { h: { 140: 4200, 160: 4500, 180: 4800, 200: 5200 }, n: { 120: 2700, 140: 2800, 160: 2900, 180: 3200 } };
+const state = { head: 'h', size: 180, wood: 'honey', fabric: 'birds' };
+
+const MEASURED = [
+  ['Труба рамки изголовья', 'Ø 50', '±3', 'фото 08'],
+  ['Гнутый уголок, радиус по оси трубы', '63 (снаружи 88, внутри 38)', '±5', 'фото 08: две дуги, ошибка 2 px'],
+  ['Ножка у пола, поперёк × спереди назад', '50 × 34', '±4', 'фото 04 сбоку, 08 спереди'],
+  ['Мягкая панель глубже лица рамки', '6', '±5', 'фото 08; новые 1, 8, 9'],
+  ['Толщина боковины', '24', '±3', 'фото 2, по рулетке'],
+  ['Доска изножья', '27', '±3', 'фото 2'],
+  ['Угловая деталь изножья', '100 × 100, скругление R 20', '±5', 'фото 2, 3'],
+  ['Фанера ниже края боковины', '45', '±10', 'фото 04, 06, 08; новые 2, 9'],
+  ['Поперечина с ножками: от ног', '300', '±40', 'фото 2, по камере'],
+  ['Ножка-брусок; от боковины', '200 × 50; 270', '±20 / ±30', 'фото 2, 3, 09'],
+  ['Прорези в фанере', '110 × 16, ряды через 150', '±15', 'новое фото 12'],
+  ['Повтор ткани с птицами', '626 × 509', '±5', 'фото 08, выпрямлено'],
+];
+document.getElementById('measured').innerHTML = MEASURED.map(r =>
+  `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td>${r[3]}</td></tr>`).join('');
+
+// ── сцена
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.NoToneMapping;
+stage.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
+const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 60);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.minDistance = 0.6;
+controls.maxDistance = 12;
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b1a5, 1.0));
+const sun = new THREE.DirectionalLight(0xfff6ea, 1.55);
+sun.position.set(-2.2, 4.0, -3.6);          // окно спереди слева, как на фото 07
+sun.target.position.set(0, 0, -1.05);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -2.8, right: 2.8, top: 2.8, bottom: -2.8, near: 0.5, far: 14 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.01;
+scene.add(sun);
+scene.add(sun.target);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.2 }));
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+// ── материалы
+const loader = new THREE.TextureLoader();
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+function tex(url, rep = 1) {
+  const t = loader.load(url, requestRender);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.flipY = false;
+  t.repeat.set(rep, rep);
+  t.anisotropy = maxAniso;
+  return t;
+}
+const T = { wood: tex('tex/wood.jpg'), birds: tex('tex/birds.jpg'), weave: tex('tex/weave.jpg', 5), ply: tex('tex/ply.jpg') };
+
+// дерево: серая карта волокон × цвет масла; у клёна волокно спокойнее
+function grainMaterial(hex, k, rough) {
+  const m = new THREE.MeshStandardMaterial({ map: T.wood, color: hex, roughness: rough, envMapIntensity: 0.55 });
+  m.userData.k = { value: k };
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uK = m.userData.k;
+    sh.fragmentShader = 'uniform float uK;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+      `#ifdef USE_MAP
+        vec4 sampledDiffuseColor = texture2D( map, vMapUv );
+        sampledDiffuseColor.rgb = mix( vec3( 1.0 ), sampledDiffuseColor.rgb, uK );
+        diffuseColor *= sampledDiffuseColor;
+      #endif`);
+  };
+  return m;
+}
+const MAT = {
+  wood: grainMaterial('#B5661C', 1, 0.52),
+  light: grainMaterial('#D8B48C', 0.6, 0.6),
+  fabric: new THREE.MeshPhysicalMaterial({ map: T.birds, roughness: 0.92, sheen: 0.35, sheenRoughness: 0.7, sheenColor: new THREE.Color('#ffffff'), envMapIntensity: 0.8 }),
+  felt: new THREE.MeshStandardMaterial({ color: '#B3ABA2', roughness: 1, envMapIntensity: 0.3 }),
+  plyA: new THREE.MeshStandardMaterial({ map: T.ply, color: '#D6B888', roughness: 0.72, envMapIntensity: 0.45 }),
+  plyB: new THREE.MeshStandardMaterial({ map: T.ply, color: '#E2CDA3', roughness: 0.72, envMapIntensity: 0.45 }),
+  metal: new THREE.MeshStandardMaterial({ color: '#9A9A96', metalness: 1, roughness: 0.35 }),
+  nut: new THREE.MeshStandardMaterial({ color: '#9A9A96', metalness: 1, roughness: 0.35, emissive: '#000000' }),
+  dark: new THREE.MeshStandardMaterial({ color: '#1A1410', roughness: 0.9 }),
+};
+function materialFor(mesh) {
+  const n = mesh.name, m = mesh.material.name;
+  if (m === 'Дерево') return MAT.wood;
+  if (m === 'Брусок_светлый') return MAT.light;
+  if (m === 'Ткань') return MAT.fabric;
+  if (m === 'Войлок') return MAT.felt;
+  if (m === 'Фанера') return /малый/.test(n) ? MAT.plyB : MAT.plyA;
+  if (m === 'Металл') return MAT.nut;
+  if (m === 'Тень') return MAT.dark;
+  return mesh.material;
+}
+function applyWood() {
+  const w = WOODS.find(x => x.id === state.wood);
+  MAT.wood.color.set(w.hex);
+  MAT.wood.userData.k.value = w.k;
+  MAT.wood.roughness = w.id === 'dark' ? 0.58 : 0.52;
+  requestRender();
+  if (typeof scheduleAR === 'function') scheduleAR();
+}
+function applyFabric() {
+  const f = FABRICS.find(x => x.id === state.fabric), m = MAT.fabric;
+  if (f.tex) { m.map = T.birds; m.color.setScalar(1.3); m.sheen = 0.3; m.sheenColor.set('#ffffff'); }   // ткань с фото — светлее, как на фото
+  else {
+    m.map = T.weave; m.color.set(f.hex);
+    m.sheen = f.velvet ? 1.0 : 0.45;
+    m.sheenColor.set(f.velvet ? '#9fb0a3' : '#ffffff');
+    m.sheenRoughness = f.velvet ? 0.45 : 0.7;
+  }
+  m.needsUpdate = true;
+  requestRender();
+}
+
+// ── модели
+const gltfLoader = new GLTFLoader();
+const cache = new Map();
+let bed = null, parts = [];
+const loading = document.getElementById('loading');
+function key() { return state.head + state.size; }
+function loadBed() {
+  const k = key();
+  loading.hidden = false;
+  const done = g => {
+    if (k !== key()) return;
+    if (bed) scene.remove(bed);
+    bed = g;
+    scene.add(bed);
+    parts = [];
+    bed.traverse(o => {
+      if (!o.isMesh) return;
+      o.material = materialFor(o);
+      o.castShadow = o.receiveShadow = true;
+      if (!o.userData.home) {
+        o.userData.home = o.position.clone();
+        const b = new THREE.Box3().setFromObject(o);
+        o.userData.cx = (b.min.x + b.max.x) / 2;
+        o.userData.cz = (b.min.z + b.max.z) / 2;
+      }
+      o.visible = true;
+      o.position.copy(o.userData.home);
+      parts.push(o);
+    });
+    loading.hidden = true;
+    stepAll();
+    scheduleAR();
+    if (!camSet) { view('q'); camSet = true; }
+    requestRender();
+  };
+  if (cache.has(k)) return done(cache.get(k));
+  const fail = () => { loading.textContent = 'Модель не загрузилась. Обновите страницу.'; };
+  fetch(`models/${k}.json`).then(r => r.json())
+    .then(j => gltfLoader.parse(b64(j.glb), '', g => { cache.set(k, g.scene); done(g.scene); }, fail))
+    .catch(fail);
+}
+function b64(s) {
+  const bin = atob(s), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return u.buffer;
+}
+let camSet = false;
+
+// ── камера (метры; изголовье у z = 0, ноги у z = −длина)
+function dims() { return DIMS ? DIMS[key()] : null; }
+function view(kind) {
+  const d = dims(), L = d ? d['длина'] / 1000 : 2.1;
+  const c = new THREE.Vector3(0, 0.45, -L / 2);
+  const P = {
+    q: [[2.18, 1.46, -3.98], [0.05, 0.42, -1.05]],     // как на фото 07
+    front: [[0, 1.25, -L - 3.4], [0, 0.5, -L / 2 + 0.2]],
+    side: [[4.2, 1.15, -L / 2], [0, 0.45, -L / 2]],
+    back: [[-1.7, 1.25, 2.4], [0, 0.6, -0.5]],
+    top: [[0, 6.2, -L / 2 + 0.001], [0, 0, -L / 2]],
+  }[kind];
+  const pos = new THREE.Vector3(...P[0]), tgt = new THREE.Vector3(...P[1]);
+  const aspect = camera.aspect || 1;
+  const s = aspect < 1 ? Math.min(2.3, 1.25 / aspect) : (aspect < 1.3 ? 1.15 : 1);   // на телефоне — дальше, чтобы влезла вся кровать
+  camera.position.copy(pos.sub(tgt).multiplyScalar(s).add(tgt));
+  controls.target.copy(tgt);
+  controls.update();
+  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === kind)));
+  requestRender();
+}
+document.querySelectorAll('#views button').forEach(b => b.addEventListener('click', () => view(b.dataset.view)));
+
+// ── отрисовка по запросу (телефон не греется)
+let pending = false, anim = null;
+function requestRender() {
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => { pending = false; renderer.render(scene, camera); });
+}
+controls.addEventListener('change', requestRender);
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  requestRender();
+}
+new ResizeObserver(resize).observe(stage);
+
+// ── сборка по шагам (инструкция ОГО; без изголовья — моё, по той же логике)
+const STEPS = {
+  h: [
+    { t: 'Три бруса вставить шкантами в поперечину с ножками и прикрутить. Комплект №1: 6 шкантов, винты Torx T25.', re: /^(Поперечина|Ножка_брусок|Брус_вдоль)/, from: [0, 0.6, 0] },
+    { t: 'Брусья прикрутить к царге изголовья, по 3 винта. Изголовье неустойчиво — это делают вдвоём.', re: /^(Изголовье|Брусок_царги)/, from: [0, 0.15, 0.9] },
+    { t: 'Боковины надеть на шпильки М8 в ножках изголовья, шпильки вкрутить до ленты. Комплект №2.', re: /^(Боковина|Брусок_боковины|Гайка_М8)/, from: 'side' },
+    { t: 'Гайки М8 затянуть ключом на 13 — через карман на внутренней стороне боковины.', pulse: /^Гайка_М8_(лев|прав)/ },
+    { t: 'В угловые детали изножья вкрутить шпильки М6 до ленты. Комплект №3.', re: /^(П_изножье|Брусок_изножье|Гайка_М6)/, from: [0, 0, -1.0], hold: [0, 0, -0.32] },
+    { t: 'Изножье надеть на боковины. Перед затяжкой выровнять плоскость, гайки М6 — ключом на 10.', move: /^(П_изножье|Брусок_изножье|Гайка_М6)/, pulse: /^Гайка_М6_(лев|прав)/ },
+    { t: 'Фанера: 4 листа по номерам, 100 шурупов 3×25, Torx T10, слегка утопить. Листы выравнивают основание.', re: /^Фанера/, from: [0, 0.5, 0], stagger: true },
+  ],
+  n: [
+    { t: 'Три бруса — между двумя поперечинами с ножками (моё: как у кровати с изголовьем).', re: /^(Поперечина|Ножка_брусок|Брус_вдоль)/, from: [0, 0.6, 0] },
+    { t: 'Боковины с брусками под фанеру.', re: /^(Боковина|Брусок_боковины)/, from: 'side' },
+    { t: 'Торцы-«П» у головы и у ног на шпильки М6.', re: /^(П_|Брусок_изножье|Брусок_торец|Гайка)/, from: 'end' },
+    { t: 'Гайки М6 затянуть ключом на 10, перед затяжкой выровнять плоскость.', pulse: /^Гайка_М6_(лев|прав)/ },
+    { t: 'Фанера: 4 листа, шурупы 3×25.', re: /^Фанера/, from: [0, 0.5, 0], stagger: true },
+  ],
+};
+const stepsBox = document.getElementById('steps');
+const stepText = document.getElementById('stepText');
+const stepList = document.getElementById('stepList');
+let curStep = -1;
+function buildStepButtons() {
+  stepsBox.querySelectorAll('button').forEach(b => b.remove());
+  const S = STEPS[state.head];
+  S.forEach((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = String(i + 1); b.setAttribute('aria-pressed', 'false');
+    b.setAttribute('aria-label', `Шаг ${i + 1}`);
+    b.addEventListener('click', () => step(i));
+    stepsBox.append(b);
+  });
+  const all = document.createElement('button');
+  all.type = 'button'; all.textContent = 'Целиком'; all.setAttribute('aria-pressed', 'true');
+  all.addEventListener('click', () => { stepAll(); scheduleAR(); stepText.textContent = 'Кровать целиком. Шаги сборки — кнопки слева.'; });
+  stepsBox.append(all);
+  stepList.innerHTML = S.map(s => `<li>${s.t}</li>`).join('');
+}
+function firstStep(o) {
+  const S = STEPS[state.head];
+  for (let i = 0; i < S.length; i++) if (S[i].re && S[i].re.test(o.name)) return i;
+  return 0;
+}
+function offsetAt(o, k, S) {          // где деталь в конце шага k (null — ещё нет)
+  const f = firstStep(o);
+  if (f > k) return null;
+  if (S[f].hold && k < f + 1) return new THREE.Vector3(...S[f].hold);
+  return new THREE.Vector3();
+}
+function startAt(o, k, S) {
+  const f = firstStep(o);
+  if (f === k) {
+    const fr = S[k].from;
+    if (fr === 'side') return new THREE.Vector3(Math.sign(o.userData.cx) * 0.75, 0.05, 0);
+    if (fr === 'end') return new THREE.Vector3(0, 0.05, o.userData.cz < -1 ? -0.8 : 0.8);
+    return new THREE.Vector3(...fr);
+  }
+  return offsetAt(o, k - 1, S) ?? new THREE.Vector3();
+}
+function setButtons(k) {
+  stepsBox.querySelectorAll('button').forEach((b, i, all) => b.setAttribute('aria-pressed', String(k < 0 ? i === all.length - 1 : i === k)));
+}
+function step(k) {
+  const S = STEPS[state.head];
+  curStep = k;
+  setButtons(k);
+  stepText.textContent = `Шаг ${k + 1}. ${S[k].t}`;
+  const tasks = [];
+  parts.forEach(o => {
+    const end = offsetAt(o, k, S);
+    if (!end) { o.visible = false; return; }
+    o.visible = true;
+    const start = startAt(o, k, S);
+    const order = /^Фанера_(\d)/.exec(o.name);
+    tasks.push({ o, start, end, delay: S[k].stagger && order ? (order[1] - 1) * 0.28 : 0 });
+  });
+  const pulse = S[k].pulse;
+  animate(tasks, pulse);
+}
+function stepAll() {
+  curStep = -1;
+  cancelAnimationFrame(anim);
+  parts.forEach(o => { o.visible = true; o.position.copy(o.userData.home); });
+  MAT.nut.emissive.set('#000000');
+  setButtons(-1);
+  requestRender();
+}
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function animate(tasks, pulse) {
+  cancelAnimationFrame(anim);
+  const dur = reduce ? 1 : 1100, t0 = performance.now();
+  const ease = u => u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+  const frame = now => {
+    const sec = (now - t0) / 1000;
+    let busy = false;
+    tasks.forEach(({ o, start, end, delay }) => {
+      const u = Math.min(1, Math.max(0, (sec - delay) * 1000 / dur));
+      if (u < 1) busy = true;
+      o.position.copy(o.userData.home).add(start.clone().lerp(end, ease(u)));
+    });
+    if (pulse) {
+      const p = Math.max(0, Math.sin(sec * 6)) * (sec < 2.4 ? 1 : 0);
+      MAT.nut.emissive.setRGB(0.9 * p, 0.45 * p, 0.05 * p);
+      if (sec < 2.5) busy = true;
+    } else MAT.nut.emissive.set('#000000');
+    renderer.render(scene, camera);
+    if (busy) anim = requestAnimationFrame(frame);
+  };
+  anim = requestAnimationFrame(frame);
+}
+
+// ── кнопки выбора
+function swatch(box, list, kindKey, chipFor, onPick) {
+  box.innerHTML = '';
+  list.forEach(it => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', String(state[kindKey] === it.id));
+    b.innerHTML = `<span class="chip" style="${chipFor(it)}"></span>${it.name}`;
+    b.addEventListener('click', () => { state[kindKey] = it.id; box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onPick(); update(); });
+    box.append(b);
+  });
+}
+swatch(document.getElementById('wood'), WOODS, 'wood', w => `background:${w.hex}`, applyWood);
+swatch(document.getElementById('fabric'), FABRICS, 'fabric', f => f.tex ? `background-image:url(tex/birds.jpg);background-size:220%` : `background:${f.hex}`, applyFabric);
+
+function buildSizes() {
+  const box = document.getElementById('size');
+  box.innerHTML = '';
+  SIZES[state.head].forEach(s => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = `${s} × 200`;
+    b.setAttribute('aria-pressed', String(state.size === s));
+    b.addEventListener('click', () => { state.size = s; buildSizes(); loadBed(); update(); });
+    box.append(b);
+  });
+}
+document.querySelectorAll('#head button').forEach(b => b.addEventListener('click', () => {
+  state.head = b.dataset.head;
+  document.querySelectorAll('#head button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  if (!SIZES[state.head].includes(state.size)) state.size = state.head === 'h' ? 140 : 180;
+  buildSizes(); buildStepButtons(); loadBed(); update();
+  stepText.textContent = 'Крутить — одним пальцем, приближать — двумя. Шаги сборки — кнопки, как в инструкции.';
+}));
+
+const fmt = n => n.toLocaleString('ru-RU');
+function update() {
+  const d = dims();
+  const p = PRICES[state.head][state.size];
+  document.getElementById('price').textContent = `${fmt(p)} BYN`;
+  const wood = WOODS.find(w => w.id === state.wood).name.toLowerCase();
+  const fab = FABRICS.find(f => f.id === state.fabric).name.toLowerCase();
+  document.getElementById('priceNote').textContent =
+    `${state.head === 'h' ? 'с мягким изголовьем' : 'без изголовья'}, матрас ${state.size} × 200, ${wood}${state.head === 'h' ? ', ' + fab : ''} · цена с сайта o-go.by · срок от 4 недель`;
+  const fo = document.getElementById('fabricOpt');
+  fo.setAttribute('aria-disabled', String(state.head !== 'h'));
+  fo.querySelectorAll('button').forEach(b => b.disabled = state.head !== 'h');
+  const ar = document.getElementById('ar');
+  scheduleAR();
+  if (!d) return;
+  const W = d['ширина'], B = d['ширина_основания'], L = d['длина'], H = d['высота'];
+  document.getElementById('facts').innerHTML = [
+    [`${fmt(W)} × ${fmt(L)} × ${fmt(H)}`, 'ширина × длина × высота, мм'],
+    [`${state.size * 10} × 2000`, 'матрас, мм'],
+    [`${d['низ_боковины']} / ${d['верх_боковины']}`, 'боковина от пола: низ / верх'],
+    [`${d['верх_боковины'] - d['верх_фанеры']}`, 'фанера ниже края, мм'],
+    state.head === 'h' ? [`Ø ${d['труба']}`, 'труба рамки, мм'] : [`${fmt(B)}`, 'ширина основания, мм'],
+    state.head === 'h' ? [`${d['ножка_у_пола'][0]} × ${d['ножка_у_пола'][1]}`, 'ножка у пола, мм'] : [`${d['брусок'][0]} × ${d['брусок'][1]}`, 'ножка-брусок, мм'],
+  ].map(([b, s]) => `<div class="fact"><b>${b}</b><span>${s}</span></div>`).join('');
+  drawSheet(d);
+}
+
+// ── лист размеров (SVG, мм); FS — размер подписи, от ширины чертежа
+let FS = 60;
+function dimH(x1, x2, y, label, up = true) {
+  const o = up ? -0.45 : 1.05, k = FS * 0.35;
+  return `<path class="d" d="M${x1} ${y}H${x2}M${x1} ${y - k}v${2 * k}M${x2} ${y - k}v${2 * k}"/><text x="${(x1 + x2) / 2}" y="${y + o * FS}" text-anchor="middle" font-size="${FS}">${label}</text>`;
+}
+function dimV(x, y1, y2, label, left = true) {
+  const k = FS * 0.35;
+  return `<path class="d" d="M${x} ${y1}V${y2}M${x - k} ${y1}h${2 * k}M${x - k} ${y2}h${2 * k}"/><text x="${x + (left ? -0.3 : 0.3) * FS}" y="${(y1 + y2) / 2 + FS * 0.35}" text-anchor="${left ? 'end' : 'start'}" font-size="${FS}">${label}</text>`;
+}
+function rr(x, y, w, h, r) { return `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h}H${x}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`; }
+function drawSheet(d) {
+  const head = d['с_изголовьем'], B = d['ширина_основания'], L = d['длина'], WH = head ? d['ширина'] : B;
+  const zb = d['низ_боковины'], zt = d['верх_боковины'], zp = d['верх_фанеры'];
+  const fy = z => 1150 - z;                     // вверх — меньше y
+  let front = '', side = '', plan = '';
+  // С ног
+  {
+    const xh = WH / 2, xb = B / 2;
+    FS = (WH + 900) / 19;
+    let g = '';
+    if (head) {
+      g += `<path class="o" d="${rr(-xh, fy(1100), WH, 1100 - zb, 88)}"/>`;
+      g += `<path class="f" d="${rr(-xh + 50, fy(1050), WH - 100, 1050 - zt, 38)}"/>`;
+      g += `<path class="o" d="M${-xh} ${fy(zb)}V${fy(0)}h50V${fy(zb)}M${xh - 50} ${fy(zb)}V${fy(0)}h50V${fy(zb)}"/>`;
+    }
+    g += `<path class="o" d="M${-xb} ${fy(zt)}H${xb}V${fy(zb)}H${-xb}Z M${-xb + 100} ${fy(zt)}V${fy(zb)}M${xb - 100} ${fy(zt)}V${fy(zb)}"/>`;
+    const b1 = xb - d['брусок_от_края'], b0 = b1 - d['брусок'][0];
+    g += `<path class="o" d="M${-b1} ${fy(zb)}V${fy(0)}H${-b0}V${fy(zb)}M${b0} ${fy(zb)}V${fy(0)}H${b1}V${fy(zb)}"/>`;
+    g += `<path class="t" d="M${-xb - 60} ${fy(0)}H${xb + 60}"/>`;
+    g += dimH(-xh, xh, fy(head ? 1100 : zt) - FS * 0.9, fmt(WH));
+    if (head) g += dimH(-xb, xb, fy(0) + FS * 0.7, fmt(B), false);
+    g += dimV(-xh - FS * 0.8, fy(head ? 1100 : zt), fy(0), head ? '1100' : String(zt));
+    g += dimV(xh + FS * 0.6, fy(zt), fy(0), String(zt), false) + dimV(xh + FS * 3.2, fy(zb), fy(0), String(zb), false);
+    const top = head ? 1100 : zt;
+    front = `<svg viewBox="${-xh - FS * 3.6} ${fy(top) - FS * 2.2} ${WH + FS * 9} ${top + FS * 4.4}" role="img" aria-label="Вид с ног">${g}</svg>`;
+  }
+  // Сбоку (изголовье слева)
+  {
+    FS = (L + 900) / 24;
+    let g = '';
+    const y0 = head ? 0 : 0;
+    if (head) {
+      g += `<path class="o" d="M0 ${fy(1100)}H50V${fy(zb)}L34 ${fy(0)}H0Z"/>`;
+      g += `<path class="f" d="M14 ${fy(1050)}H44V${fy(zt)}H14Z"/>`;
+    }
+    const r0 = head ? 42 : 0;
+    g += `<path class="o" d="M${r0} ${fy(zt)}H${L}V${fy(zb)}H${r0}Z M${L - 100} ${fy(zt)}V${fy(zb)}${head ? '' : `M100 ${fy(zt)}V${fy(zb)}`}"/>`;
+    g += `<path class="t" d="M${head ? 60 : 27} ${fy(zp)}H${L - 27}"/>`;
+    const cy = L - d['поперечина_от_ног'];
+    g += `<path class="o" d="M${cy - 45} ${fy(zb)}V${fy(0)}H${cy + 5}V${fy(zb)}"/>`;
+    if (!head) g += `<path class="o" d="M${d['поперечина_от_ног'] - 5} ${fy(zb)}V${fy(0)}H${d['поперечина_от_ног'] + 45}V${fy(zb)}"/>`;
+    g += `<path class="t" d="M-60 ${fy(0)}H${L + 60}"/>`;
+    g += dimH(0, L, fy(head ? 1100 : zt) - FS * 0.9, fmt(L));
+    g += dimH(cy, L, fy(0) + FS * 0.7, String(d['поперечина_от_ног']), false);
+    g += dimV(L + FS * 0.6, fy(zt), fy(zp), String(zt - zp), false);
+    const top = head ? 1100 : zt;
+    side = `<svg viewBox="${-FS * 1.5} ${fy(top) - FS * 2.2} ${L + FS * 5} ${top + FS * 4.4}" role="img" aria-label="Вид сбоку">${g}</svg>`;
+  }
+  // Сверху
+  {
+    const xb = B / 2, xh = WH / 2;
+    FS = (WH + 900) / 19;
+    let g = '';
+    if (head) g += `<path class="o" d="M${-xh} 0H${xh}V50H${-xh}Z"/>`;
+    g += `<path class="o" d="M${-xb} ${head ? 42 : 0}H${xb}V${L - 20}A20 20 0 0 1 ${xb - 20} ${L}H${-xb + 20}A20 20 0 0 1 ${-xb} ${L - 20}Z"/>`;
+    const xi = xb - 24, ya = head ? 60 : 27, yb = L - 27;
+    g += `<path class="f" d="M${-xi} ${ya}H${xi}V${yb}H${-xi}Z"/>`;
+    const seam = L - d['поперечина_от_ног'] - 20;
+    g += `<path class="o" d="M0 ${ya}V${yb}M0 ${seam}H${xi}M${-xi} ${seam - 230}H0"/>`;
+    g += dimH(-xb, xb, -FS * 0.9, fmt(B));
+    g += dimV(xb + FS * 0.6, 0, L, fmt(L), false);
+    g += `<text x="0" y="${L / 2}" text-anchor="middle" font-size="${FS}">${state.size * 10} × 2000</text>`;
+    plan = `<svg viewBox="${-xh - FS * 0.8} ${-FS * 2.2} ${WH + FS * 5.4} ${L + FS * 3}" role="img" aria-label="Вид сверху">${g}</svg>`;
+  }
+  document.getElementById('sheet').innerHTML =
+    `<div class="view"><h3>С ног</h3>${front}</div><div class="view"><h3>Сверху</h3>${plan}</div><div class="view wide"><h3>Сбоку</h3>${side}</div>`;
+}
+
+// ── «в комнату»: на айфоне страница сама собирает файл .usdz из того, что выбрано
+const arOK = document.createElement('a').relList.supports('ar');
+const arLink = document.getElementById('ar');
+const arNote = document.getElementById('arNote');
+let arURL = null, arTimer = null, arBusy = false;
+arNote.textContent = arOK
+  ? '«В комнату» — кровать в выбранном размере, дереве и ткани, в натуральную величину. Кнопка появляется через пару секунд после выбора.'
+  : '«В комнату» — кнопка появится на айфоне в Safari: кровать в натуральную величину в вашей комнате.';
+function scheduleAR() {
+  if (!arOK) return;
+  clearTimeout(arTimer);
+  arLink.hidden = true;
+  arTimer = setTimeout(makeAR, 1500);
+}
+async function makeAR() {
+  if (!bed || curStep !== -1 || arBusy) { if (arOK) arTimer = setTimeout(makeAR, 1500); return; }
+  arBusy = true;
+  try {
+    const r = new USDZExporter().parse(bed, { quickLookCompatible: true, maxTextureSize: 1024 });
+    const data = r instanceof Promise ? await r : r;
+    if (arURL) URL.revokeObjectURL(arURL);
+    arURL = URL.createObjectURL(new Blob([data], { type: 'model/vnd.usdz+zip' }));
+    arLink.href = arURL;
+    arLink.hidden = false;
+  } catch (e) {
+    arNote.textContent = '«В комнату» не собралось на этом устройстве.';
+  }
+  arBusy = false;
+}
+
+// ── старт
+let DIMS = null;
+fetch('dims.json').then(r => r.json()).then(j => { DIMS = j; update(); if (bed) view('q'); }).catch(() => {});
+buildSizes();
+buildStepButtons();
+applyWood();
+applyFabric();
+update();
+resize();
+loadBed();
+</script>
