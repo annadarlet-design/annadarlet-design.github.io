@@ -87,6 +87,12 @@
                 background: #fff; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
   .acts button[aria-pressed="true"] { background: var(--field); }
   .acts button[disabled] { opacity: .6; cursor: progress; }
+  /* «Скачать 3D ▾» — список форматов, как их выбор размера на сайте (Лида, 25 окт); сам список — родной, телефонный */
+  .dlwrap { position: relative; display: grid; place-items: center; height: 44px; border-radius: 5px; font-size: 13px; font-weight: 600;
+            background: var(--ink); color: var(--ink-fg); cursor: pointer; white-space: nowrap; }
+  .dlwrap select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; cursor: pointer; }
+  .dlwrap.busy { opacity: .6; cursor: progress; }
+  .dlwrap:focus-within { outline: 2px solid var(--ink); outline-offset: 2px; }
   button:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
   @media (min-width: 860px) {
     body { display: grid; grid-template-columns: 1fr 380px; grid-template-rows: auto 1fr; }
@@ -131,7 +137,15 @@
   <div class="acts">
     <button type="button" id="resetBtn"><span class="mini" aria-hidden="true"></span>Без цвета</button>
     <button type="button" id="asmBtn" aria-pressed="false">Сборка</button>
-    <button type="button" id="dl" class="main">Скачать 3D</button>
+    <label class="dlwrap" id="dlwrap">Скачать 3D&nbsp;▾
+      <select id="dl" aria-label="Скачать 3D-модель">
+        <option value="" selected disabled hidden>Скачать 3D-модель</option>
+        <option value="fbx">FBX</option>
+        <option value="glb">GLB</option>
+        <option value="obj">OBJ</option>
+        <option value="zip">Все форматы (ZIP)</option>
+      </select>
+    </label>
   </div>
 </section>
 
@@ -155,13 +169,16 @@ import { VerticalBlurShader } from 'three/addons/shaders/VerticalBlurShader.js';
 // ── выбор
 // масла и ткани — отметки Лиды 25 окт (самые популярные); только классическая, матрасы 140–200
 // dot — цвет точки: средний цвет дерева с этим маслом (картинка дуба на странице)
+// tint — поправка цвета дерева под свет сцены, у каждого масла своя: подогнано к фото их кроватей (25 окт, ночь:
+// светлый дуб был ярче и желтее фото, тёмный — холоднее и серее); у Smoke фото кровати нет — как было
 const WOODS = [
-  { id: 'oak', name: 'Oak', dot: '#C29B5D' },
-  { id: 'smoke5', name: 'Smoke 5\u00a0%', dot: '#C29D65' },
-  { id: 'chocolate', name: 'Chocolate', dot: '#5A463B' },
+// swatch — цвет точки на панели: как дерево выглядит на кровати (замерено на освещённой боковине, 25 окт)
+  { id: 'oak', name: 'Oak', dot: '#C29B5D', swatch: '#C29D73', tint: [1.05, 0.95, 0.8], sat: 0.72 },        // медовый, как ткань-на-кровати/1
+  { id: 'smoke5', name: 'Smoke 5\u00a0%', dot: '#C29D65', swatch: '#C4A887', tint: [1.05, 0.97, 0.86], sat: 0.6 }, // чуть серее дуба — по образцу
+  { id: 'chocolate', name: 'Chocolate', dot: '#5A463B', swatch: '#67503F', tint: [1.1, 0.97, 0.74], sat: 1 },   // глубже и теплее — фото 24 окт/12
 ];
 const FABRICS = [   // цвет — с образца тканей, свет фото выровнен по белому фону
-  { id: 'light', name: 'Светлая серо-бежевая', hex: '#DCCCBB' },
+  { id: 'light', name: 'Светлая серо-бежевая', hex: '#DDCCB2' },   // чуть теплее — по фото кровати с этой тканью (25 окт)
   { id: 'taupe', name: 'Серо-коричневая', hex: '#7A6E68' },
 ];
 const SIZES = { h: [140, 160, 180, 200] };   // 140 и 200 — её просьба 25 окт, вечер; цены на странице нет
@@ -186,8 +203,11 @@ controls.maxPolarAngle = Math.PI * 0.495;
 controls.minDistance = 0.6;
 controls.maxDistance = 12;
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb9b1a5, 1.0));
-const sun = new THREE.DirectionalLight(0xfff6ea, 1.55);
+// свет мягче и теплее: солнце слабее, рассеянный — теплее и сильнее; тени на кровати мягче, всё «сочетается,
+// ничего не режет глаз» (её слова 25 окт, ночь; было: солнце 1,55, рассеянный белый 1,0)
+scene.add(new THREE.HemisphereLight(0xfff6ec, 0xc8b8a4, 1.2));
+const sun = new THREE.DirectionalLight(0xfff6ea, 1.3);
+const hemi = scene.children.find(o => o.isHemisphereLight);
 sun.position.set(2.2, 5.5, -4.2);           // свет со стороны смотрящего, сверху — её выбор 25 окт (вариант 3: «потеплее, объём»)
 sun.target.position.set(0, 0, -1.05);
 sun.castShadow = true;
@@ -354,14 +374,41 @@ function paintable(m, key) {
 const MAT = {
   // масло Rubio — матовое, блика почти нет. Рельефа пор нет: при приближении от него «дрожало» (25 окт).
   // Цвет > 1 — поправка на свет сцены: вблизи дерево того же тона, что на её фото ножки (25 окт)
-  wood: new THREE.MeshStandardMaterial({ color: new THREE.Color(1.3, 1.24, 1.05), roughness: 0.62, envMapIntensity: 0.45 }),
+  // масло — мягкий шёлковый блеск (было 0,62 / 0,45 — сухо, «как пластик»)
+  wood: new THREE.MeshStandardMaterial({ color: new THREE.Color(1.3, 1.24, 1.05), roughness: 0.45, envMapIntensity: 0.75 }),
   light: grainMaterial('#D8B48C', 1, 0.6),
   fabric: new THREE.MeshPhysicalMaterial({ map: T.fabric, roughness: 0.92, sheen: 0.45, sheenRoughness: 0.7, sheenColor: new THREE.Color('#ffffff'), envMapIntensity: 0.8 }),
   plyA: new THREE.MeshStandardMaterial({ map: T.ply, color: '#D6B888', roughness: 0.72, envMapIntensity: 0.45 }),
   plyB: new THREE.MeshStandardMaterial({ map: T.ply, color: '#E2CDA3', roughness: 0.72, envMapIntensity: 0.45 }),
+  // торцы и стенки прорезей фанеры — тёплые, как свет в прорезях на их фото; не белеют и не красятся
+  // (её просьба 25 окт: «на прорезях такое свечение… нежное, тёплое»); чуть светятся, чтобы и в тени были тёплыми
+  plyEdge: new THREE.MeshStandardMaterial({ color: '#F1D6BC', roughness: 0.85, envMapIntensity: 0.5 }),
   metal: new THREE.MeshStandardMaterial({ color: '#9A9A96', metalness: 1, roughness: 0.35 }),
   nut: new THREE.MeshStandardMaterial({ color: '#9A9A96', metalness: 1, roughness: 0.35, emissive: '#000000' }),
   dark: new THREE.MeshStandardMaterial({ color: '#1A1410', roughness: 0.9 }),
+};
+// мягкость дерева: рисунок волокна чуть притушить к среднему цвету масла (soft 0…1) — пробуем её «уютнее,
+// как на фото» (25 окт, ночь); средний цвет масла — как у точки
+MAT.wood.userData.soft = { value: 0.35 };                  // её «уютнее, как на фото Лиды» (25 окт, ночь)
+MAT.wood.userData.avg = { value: new THREE.Color('#C29B5D') };
+MAT.wood.userData.sat = { value: 1 };                       // насыщенность — у каждого масла своя (WOODS.sat)
+MAT.wood.onBeforeCompile = sh => {
+  sh.uniforms.uSoft = MAT.wood.userData.soft;
+  sh.uniforms.uAvg = MAT.wood.userData.avg;
+  sh.uniforms.uSat = MAT.wood.userData.sat;
+  sh.fragmentShader = 'uniform float uSoft;\nuniform float uSat;\nuniform vec3 uAvg;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+    `#include <map_fragment>
+    diffuseColor.rgb = mix( diffuseColor.rgb, diffuse * uAvg, uSoft );
+    diffuseColor.rgb = mix( vec3( dot( diffuseColor.rgb, vec3( 0.2126, 0.7152, 0.0722 ) ) ), diffuseColor.rgb, uSat );`);
+};
+// прорези фанеры — как на их фото: у верхнего края светлый тёплый отсвет, глубже — мягкая тёплая тень
+// (её «более рассеянное освещение, воздушное… сейчас грубовато», 25 окт, ночь); высота — мировая, фанера на 0,332…0,350 м
+MAT.plyEdge.onBeforeCompile = sh => {
+  sh.vertexShader = 'varying float vWy;\n' + sh.vertexShader.replace('#include <worldpos_vertex>',
+    '#include <worldpos_vertex>\n vWy = ( modelMatrix * vec4( transformed, 1.0 ) ).y;');
+  sh.fragmentShader = 'varying float vWy;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+    `#include <color_fragment>
+    diffuseColor.rgb *= mix( vec3( 0.42, 0.33, 0.26 ), vec3( 1.0 ), smoothstep( 0.336, 0.3495, vWy ) );`);
 };
 ['wood', 'light', 'fabric', 'plyA', 'plyB', 'dark'].forEach(k => paintable(MAT[k], k));
 const WOOD_MATS = [MAT.wood, MAT.light, MAT.dark];   // окрашиваются с маслом; фанера — нет, остаётся белой (её просьба 25 окт)
@@ -383,12 +430,17 @@ function materialFor(mesh) {
   if (m === 'Брусок_светлый') return MAT.light;
   if (m === 'Ткань') return MAT.fabric;
   if (m === 'Фанера') return /малый/.test(n) ? MAT.plyB : MAT.plyA;
-  if (m === 'Металл') return /шуруп|шпильк/.test(n) ? MAT.metal : MAT.nut;   // шурупы и болты не мигают на шагах с гайками
+  if (m === 'Фанера_торец') return MAT.plyEdge;
+  if (m === 'Металл') return /^Гайка/.test(n) ? MAT.nut : MAT.metal;   // мигают на шагах только гайки боковин и изножья
   if (m === 'Тень') return MAT.dark;
   return mesh.material;
 }
 function applyWood() {
   if (!state.wood) return;
+  const wd = WOODS.find(x => x.id === state.wood);
+  MAT.wood.userData.avg.value.set(wd.dot);
+  MAT.wood.color.setRGB(...wd.tint);
+  MAT.wood.userData.sat.value = wd.sat;
   const rec = woodTex(state.wood);
   if (!rec.best) return;                                 // картинка ещё грузится — покрасим, когда придёт
   if (MAT.wood.map !== rec.best) {
@@ -495,7 +547,7 @@ function requestRender() {
   requestAnimationFrame(() => { pending = false; draw(); });
 }
 controls.addEventListener('change', requestRender);
-if (location.hash === '#dbg') window.dbg = { THREE, scene, camera, controls, requestRender, state, MAT, T, view, SH, sun, shPlane, renderer, rt,
+if (location.hash === '#dbg') window.dbg = { THREE, scene, camera, controls, requestRender, state, MAT, T, view, SH, sun, shPlane, renderer, rt, hemi,
   shadow: () => { shadowDirty = true; requestRender(); } };   // проверочные кадры
 function resize() {
   const w = stage.clientWidth, h = stage.clientHeight;
@@ -641,7 +693,7 @@ function swatch(box, list, kindKey, chipFor, onPick) {
   });
 }
 // точки: масло — средний цвет дерева, ткань — цвет образца
-swatch(document.getElementById('wood'), WOODS, 'wood', w => `background-color:${w.dot}`, applyWood);
+swatch(document.getElementById('wood'), WOODS, 'wood', w => `background-color:${w.swatch}`, applyWood);
 swatch(document.getElementById('fabric'), FABRICS, 'fabric', f => `background-color:${f.hex}`, applyFabric);
 
 function buildSizes() {
@@ -716,8 +768,11 @@ async function withPlainWood(fn) {
   try { return await fn(); } finally { MAT.wood.color.copy(keep); }
 }
 
-// ── скачать 3D-модель под выбор: .fbx и .obj (собраны в Blender) + картинки + .glb из этой сцены
-const dlBtn = document.getElementById('dl'), toastEl = document.getElementById('toast');
+// ── скачать 3D-модель — списком форматов (её и Лиды решение 25 окт, ночь: «не архив… скачать в таком-то
+// формате отдельно… и последняя — всё в ZIP»; «один файлик FBX, в котором всё сидит»). FBX и GLB — один файл,
+// картинки внутри; OBJ — только архивом (картинки у OBJ всегда рядом). Масло не выбрано — дерево, бруски и фанера
+// белые; ткань не выбрана — ткань белая («дать на сохранение белую кровать»).
+const dlSel = document.getElementById('dl'), dlWrap = document.getElementById('dlwrap'), toastEl = document.getElementById('toast');
 let toastTimer = null;
 function toast(text, hide = 4500) {
   clearTimeout(toastTimer);
@@ -742,21 +797,112 @@ async function fabricJpeg(hex) {             // серая ткань × цве�
   g.putImageData(px, 0, 0);
   return new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9));
 }
-function glb() {
+function whiteJpeg() {
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 8;
+  const g = cv.getContext('2d');
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, 8, 8);
+  return new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9));
+}
+const blobOf = url => fetch(url).then(r => r.blob());
+async function textures() {                  // картинки под выбор (имена — как в .fbx и .mtl)
+  const w = WOODS.find(x => x.id === state.wood), f = FABRICS.find(x => x.id === state.fabric);
+  const white = (!w || !f) ? await whiteJpeg() : null;
+  return {
+    'wood.jpg': w ? await blobOf(`tex/wood-${w.id}.jpg`) : white,
+    'plywood.jpg': w ? await blobOf('download/plywood.jpg') : white,
+    'bars.jpg': w ? await blobOf('download/bars.jpg') : white,
+    'fabric.jpg': f ? await fabricJpeg(f.hex) : white,
+  };
+}
+
+// FBX (двоичный 7400, как пишет Blender): заменить встроенные картинки Objects/Video/Content. Тот же порядок
+// действий, что `веб/проверка-fbx.py` — сверено: без замен файл собирается байт в байт, с заменами хеш тот же.
+function fbxSwap(buf, imgs) {                // buf, imgs[имя] — Uint8Array; → массив кусков для Blob
+  const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength), u32 = o => dv.getUint32(o, true);
+  const dec = new TextDecoder(), zero13 = new Uint8Array(13);
+  const parse = (o, end) => {                // → [узлы, смещение после списка, была ли пустая запись в конце]
+    const nodes = [];
+    while (o < end) {
+      const eo = u32(o), n = u32(o + 4), pl = u32(o + 8);
+      if (eo === 0) return [nodes, o + 13, true];
+      const nl = buf[o + 12], ps = o + 13 + nl;
+      let kids = [], sent = false;
+      if (ps + pl < eo) [kids, , sent] = parse(ps + pl, eo);
+      nodes.push({ name: buf.subarray(o + 13, ps), n, props: buf.subarray(ps, ps + pl), kids, sent });
+      o = eo;
+    }
+    return [nodes, o, false];
+  };
+  const ver = u32(23);
+  if (dec.decode(buf.subarray(0, 18)) !== 'Kaydara FBX Binary' || ver >= 7500) throw new Error('не тот FBX');
+  const [top, fo] = parse(27, buf.length);
+  const objs = top.find(nd => dec.decode(nd.name) === 'Objects');
+  for (const v of objs.kids.filter(nd => dec.decode(nd.name) === 'Video')) {
+    const rel = v.kids.find(nd => ['RelativeFilename', 'Filename'].includes(dec.decode(nd.name)));
+    const key = dec.decode(rel.props.subarray(5)).replace(/\\/g, '/').split('/').pop();
+    if (!imgs[key]) continue;
+    const c = v.kids.find(nd => dec.decode(nd.name) === 'Content');
+    const p = new Uint8Array(5 + imgs[key].length);
+    p[0] = 82;                                // 'R' — сырые байты
+    new DataView(p.buffer).setUint32(1, imgs[key].length, true);
+    p.set(imgs[key], 5);
+    c.n = 1;
+    c.props = p;
+  }
+  const size = nd => 13 + nd.name.length + nd.props.length + nd.kids.reduce((s, k) => s + size(k), 0) + (nd.sent ? 13 : 0);
+  const out = [buf.subarray(0, 27)];
+  let off = 27;
+  const head = (eo, n, pl, nl) => { const h = new Uint8Array(13), d = new DataView(h.buffer);
+    d.setUint32(0, eo, true); d.setUint32(4, n, true); d.setUint32(8, pl, true); h[12] = nl; return h; };
+  const write = nodes => {
+    for (const nd of nodes) {
+      const eo = off + size(nd);
+      out.push(head(eo, nd.n, nd.props.length, nd.name.length), nd.name, nd.props);
+      off += 13 + nd.name.length + nd.props.length;
+      write(nd.kids);
+      if (nd.sent) { out.push(zero13); off += 13; }
+    }
+  };
+  write(top);
+  out.push(zero13, buf.subarray(fo, fo + 16), new Uint8Array(4));
+  off += 13 + 16 + 4;
+  const pad = (((off + 15) & ~15) - off) || 16;
+  const tail = new Uint8Array(pad + 4 + 120 + 16), td = new DataView(tail.buffer);
+  td.setUint32(pad, ver, true);
+  tail.set([0xf8, 0x5a, 0x8c, 0x6a, 0xde, 0xf5, 0xd9, 0x7e, 0xec, 0xe9, 0x0c, 0xe3, 0x75, 0x8f, 0x29, 0x0b], pad + 124);
+  out.push(tail);
+  return out;
+}
+const b64bytes = s => new Uint8Array(b64(s));
+async function fbxFile(j, tex) {
+  const imgs = {};
+  for (const [k, b] of Object.entries(tex)) imgs[k] = new Uint8Array(await b.arrayBuffer());
+  return new Blob(fbxSwap(b64bytes(j.fbx), imgs), { type: 'application/octet-stream' });
+}
+// GLB — из этой сцены; что не выбрано — белым
+async function glb() {
   [T.fabric, T.ply, T.light, MAT.wood.map].forEach(t => { if (t) t.userData.mimeType = 'image/jpeg'; });
-  return withPlainWood(() => new Promise((ok, bad) =>
-    new GLTFExporter().parse(bed, ok, bad, { binary: true, maxTextureSize: 4096 })));
+  const white = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.8, name: 'white' });
+  const whiten = new Set([...(state.wood ? [] : [MAT.wood, MAT.light, MAT.plyA, MAT.plyB, MAT.dark]), ...(state.fabric ? [] : [MAT.fabric])]);
+  const keep = [];
+  bed.traverse(o => { if (o.isMesh && whiten.has(o.material)) { keep.push([o, o.material]); o.material = white; } });
+  try {
+    return await withPlainWood(() => new Promise((ok, bad) =>
+      new GLTFExporter().parse(bed, ok, bad, { binary: true, maxTextureSize: 4096 })));
+  } finally { keep.forEach(([o, m]) => { o.material = m; }); }
 }
 function readme(d, wood, fab) {
   return [
     'Кровать с мягким изголовьем — мастерская ОГО, Минск (o-go.by)',
     `Матрас ${state.size * 10} × 2000 мм; кровать ${d ? `${d['ширина']} × ${d['длина']} × ${d['высота']}` : ''} мм`,
-    `Дуб, масло Rubio Monocoat ${wood}; ткань изголовья — ${fab}`,
+    `Дуб, ${wood}; ткань изголовья — ${fab}`,
     '',
-    'bed.fbx — 3ds Max, ArchiCAD, Cinema 4D, Revit (как импорт)',
-    'bed.obj + bed.mtl — почти любая программа; ось Z вверх, как в ArchiCAD, SketchUp, 3ds Max',
-    'bed.glb — всё в одном файле, с текстурами (Blender, SketchUp с расширением, сайты)',
-    'wood.jpg, fabric.jpg, plywood.jpg, bars.jpg — текстуры, .fbx и .obj берут их по имени из этой папки',
+    'bed.fbx — один файл, картинки внутри: 3ds Max, Cinema 4D, ArchiCAD, Revit (как импорт)',
+    'bed.glb — один файл, картинки внутри: Blender, SketchUp с расширением, сайты',
+    'bed.obj + bed.mtl — почти любая программа; ось Y вверх, как принято для OBJ',
+    'wood.jpg, fabric.jpg, plywood.jpg, bars.jpg — картинки для bed.obj, он берёт их по имени из этой папки',
     '',
     'Натуральная величина, единицы — метры. Начало координат — на полу, по центру ширины,',
     'у задней плоскости изголовья. Одна деталь кровати — один объект.',
@@ -765,7 +911,7 @@ function readme(d, wood, fab) {
 async function saveFile(blob, filename) {
   const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
   if (dl) {
-    try { await dl.save({ filename, data: blob }); return 'Готово: архив сохранён.'; }
+    try { await dl.save({ filename, data: blob }); return 'Готово: файл сохранён.'; }
     catch (e) { return e && e.code === 'declined' ? '' : 'Скачивание здесь недоступно — откройте страницу на сайте ОГО.'; }
   }
   if (window.claude) return 'Скачивание здесь недоступно — откройте страницу на сайте ОГО.';
@@ -775,40 +921,45 @@ async function saveFile(blob, filename) {
   document.body.append(a);
   a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-  return 'Готово: архив скачивается.';
+  return 'Готово: файл скачивается.';
 }
-async function makeZip() {
+async function makeFile(kind) {                     // kind: fbx | glb | obj | zip
   if (curStep !== -1) stepAll();                    // в файл — кровать целиком, на своих местах
   const w = WOODS.find(x => x.id === state.wood), f = FABRICS.find(x => x.id === state.fabric);
-  const name = `OGO-krovat-${state.size}-${LATIN[w.id]}-${LATIN[f.id]}`;
+  const name = `OGO-krovat-${state.size}-` + (!w && !f ? 'belaya' : `${w ? LATIN[w.id] : 'belyj-dub'}-${f ? LATIN[f.id] : 'belaya-tkan'}`);
+  if (kind === 'glb') return { name: name + '.glb', blob: new Blob([await glb()], { type: 'model/gltf-binary' }) };
   const j = await fetch(`download/h${state.size}.json`).then(r => r.json());
-  const blobOf = url => fetch(url).then(r => r.blob());
+  const tex = await textures();
+  if (kind === 'fbx') return { name: name + '.fbx', blob: await fbxFile(j, tex) };
   const zip = new JSZip(), dir = zip.folder(name);
-  dir.file('bed.fbx', j.fbx, { base64: true });
   dir.file('bed.obj', j.obj, { base64: true });
   dir.file('bed.mtl', j.mtl);
-  dir.file('wood.jpg', await blobOf(`tex/wood-${w.id}.jpg`));
-  dir.file('fabric.jpg', await fabricJpeg(f.hex));
-  dir.file('plywood.jpg', await blobOf('download/plywood.jpg'));
-  dir.file('bars.jpg', await blobOf('download/bars.jpg'));
-  dir.file('bed.glb', await glb());
-  dir.file('README.txt', readme(dims(), w.name, f.name.toLowerCase()));
+  for (const [k, b] of Object.entries(tex)) dir.file(k, b);
+  if (kind === 'zip') {
+    dir.file('bed.fbx', await fbxFile(j, tex));
+    dir.file('bed.glb', await glb());
+  }
+  dir.file('README.txt', readme(dims(), w ? 'масло Rubio Monocoat ' + w.name : 'белый (без масла)', f ? f.name.toLowerCase() : 'белая'));
   return { name: name + '.zip', blob: await zip.generateAsync({ type: 'blob' }) };
 }
-dlBtn.addEventListener('click', async () => {
-  if (!bed || typeof JSZip === 'undefined') return;
-  if (!state.wood || !state.fabric) return toast('Сначала выберите ткань и масло — модель скачается в этих цветах.');
-  dlBtn.disabled = true;
-  toast('Собираю 3D-модель: выбранный размер, масло и ткань — .fbx, .obj, .glb с текстурами…', 0);
+const KIND_TEXT = { fbx: 'FBX', glb: 'GLB', obj: 'OBJ', zip: 'все форматы' };   // без «один файл» — дизайнеры знают сами (её слова)
+dlSel.addEventListener('change', async () => {
+  const kind = dlSel.value;
+  dlSel.value = '';
+  if (!kind || !bed || typeof JSZip === 'undefined') return;
+  dlSel.disabled = true;
+  dlWrap.classList.add('busy');
+  toast(`Собираю ${KIND_TEXT[kind]}: размер ${state.size}, ` + (state.wood || state.fabric ? 'выбранные масло и ткань…' : 'белая кровать…'), 0);
   try {
-    const { name, blob } = await makeZip();
+    const { name, blob } = await makeFile(kind);
     toast(await saveFile(blob, name));
   } catch (e) {
-    toast('Архив не собрался. Обновите страницу и попробуйте ещё раз.');
+    toast('Файл не собрался. Обновите страницу и попробуйте ещё раз.');
   }
-  dlBtn.disabled = false;
+  dlSel.disabled = false;
+  dlWrap.classList.remove('busy');
 });
-if (location.hash === '#dbg') window.dbg.makeZip = makeZip;
+if (location.hash === '#dbg') Object.assign(window.dbg, { makeFile, fbxSwap, textures });
 
 // ── «В интерьер»: фото своей комнаты — фоном, кровать поверх; повернуть, подвинуть, приблизить
 document.getElementById('resetBtn').addEventListener('click', () => {   // снова белая
