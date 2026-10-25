@@ -41,6 +41,7 @@
   header p { margin: 0; color: var(--muted); font-size: 14px; }
   #stage { position: relative; height: 60svh; min-height: 330px; max-height: 720px; touch-action: none; }
   #stage canvas { display: block; width: 100%; height: 100%; }
+  #stage.room { background-size: cover; background-position: center; background-repeat: no-repeat; }
   #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; }
   button, .btn { font: inherit; font-size: 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); padding: 7px 12px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
   button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -58,39 +59,20 @@
   .sw button { padding: 6px 10px 6px 6px; }
   .chip { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); flex: none; background-size: cover; background-position: center; }
   .sw button[aria-pressed="true"] .chip { border-color: var(--accent-ink); }
-  .opt[aria-disabled="true"] { opacity: .45; }
   .price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
   .price b { font-family: var(--font-num); font-weight: 400; font-size: 26px; font-variant-numeric: tabular-nums; }
   .price span { color: var(--muted); font-size: 13px; }
-  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-block: 14px 6px; }
-  .fact { background: var(--panel); padding: 10px 12px; min-width: 0; }
-  .fact b { display: block; font-family: var(--font-num); font-weight: 400; font-size: 17px; font-variant-numeric: tabular-nums; }
-  .fact span { color: var(--muted); font-size: 13px; }
-  h2 { font-size: 16px; font-weight: 600; margin: 26px 0 8px; text-wrap: balance; }
-  p.note { color: var(--muted); font-size: 13px; max-width: 68ch; margin: 6px 0 0; }
-  .sheet { display: grid; gap: 14px; }
-  .view { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow-x: auto; }
-  .view h3 { margin: 0 0 4px; font-size: 13px; font-weight: 500; color: var(--muted); }
-  .view svg { display: block; width: 100%; height: auto; min-width: 300px; }
-  .view svg .o { fill: none; stroke: var(--fg); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
-  .view svg .f { fill: var(--line); stroke: var(--fg); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
-  .view svg .t { fill: none; stroke: var(--muted); stroke-width: 1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
-  .view svg .d { fill: none; stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
-  .view svg text { fill: var(--accent); font-family: var(--font-num); }
-  .tablebox { overflow-x: auto; }
-  table { border-collapse: collapse; font-size: 14px; min-width: 540px; }
-  th, td { text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 500; font-size: 13px; }
-  td.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
-  ol { padding-left: 20px; margin: 0; display: grid; gap: 6px; max-width: 70ch; }
+  .dl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  #dl { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 500; }
+  #dl[disabled] { opacity: .6; cursor: progress; }
+  #dlNote { color: var(--muted); font-size: 13px; max-width: 52ch; min-width: 0; }
   footer { padding-block: 22px 30px; color: var(--muted); font-size: 13px; }
-  @media (min-width: 760px) { .sheet { grid-template-columns: 1fr 1fr; } .sheet .wide { grid-column: 1 / -1; } }
   @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
 </style>
 
 <header class="wrap">
   <h1>Кровать с мягким изголовьем</h1>
-  <p>ОГО, Минск · 3D по настоящей кровати · черновик</p>
+  <p>ОГО · Минск</p>
 </header>
 
 <div id="stage"><div id="loading">Загружаю кровать…</div></div>
@@ -102,46 +84,28 @@
     <button type="button" data-view="side" aria-pressed="false">Сбоку</button>
     <button type="button" data-view="back" aria-pressed="false">Сзади</button>
     <button type="button" data-view="top" aria-pressed="false">Сверху</button>
+    <button type="button" id="roomBtn">В интерьер</button>
+    <button type="button" id="roomOff" hidden>Убрать фото</button>
+    <input type="file" id="roomFile" accept="image/*" hidden>
     <a id="ar" class="btn" rel="ar" href="#" hidden><img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='M12 2l9 5v10l-9 5-9-5V7z'/%3E%3Cpath d='M3 7l9 5 9-5M12 12v10'/%3E%3C/svg%3E">В комнату</a>
   </div>
   <div class="row" id="steps"><span class="lab">Сборка</span></div>
-  <p id="stepText">Крутить — одним пальцем, приближать — двумя. Шаги сборки — кнопки 1–7, как в инструкции.</p>
+  <p id="stepText">Крутить — одним пальцем, приближать — двумя.</p>
 </div>
 
 <section class="wrap config" aria-label="Выбор">
-  <div class="opt"><span class="lab">Изголовье</span>
-    <div class="row" id="head">
-      <button type="button" data-head="h" aria-pressed="true">С мягким изголовьем</button>
-      <button type="button" data-head="n" aria-pressed="false">Без изголовья</button>
-    </div>
-  </div>
   <div class="opt"><span class="lab">Матрас</span><div class="row" id="size"></div></div>
-  <div class="opt"><span class="lab">Дерево · масло Rubio Monocoat</span><div class="sw" id="wood"></div></div>
-  <div class="opt" id="fabricOpt"><span class="lab">Ткань изголовья · по заказу</span><div class="sw" id="fabric"></div></div>
-  <div class="price"><b id="price">—</b><span id="priceNote"></span></div>
+  <div class="opt"><span class="lab">Дуб · масло Rubio Monocoat</span><div class="sw" id="wood"></div></div>
+  <div class="opt"><span class="lab">Ткань изголовья</span><div class="sw" id="fabric"></div></div>
+  <div class="price"><b id="price">—</b><span>цена с сайта o-go.by</span></div>
+  <div class="dl">
+    <button type="button" id="dl">Скачать 3D-модель</button>
+    <span id="dlNote">для дизайнеров и архитекторов: выбранный размер, масло и ткань — .fbx, .obj, .glb с текстурами</span>
+  </div>
 </section>
+<footer class="wrap"></footer>
 
-<main class="wrap">
-  <div class="facts" id="facts"></div>
-  <p class="note" id="arNote"></p>
-
-  <h2>Лист размеров</h2>
-  <div class="sheet" id="sheet"></div>
-  <p class="note">Все размеры в миллиметрах. Ширина основания — матрас + 60, длина — матрас + 100 (без изголовья + 60), изголовье — матрас + 110, высота 1100: с сайта. Боковина 185 — по рулетке. Остальное снято с фото, точность — в таблице ниже.</p>
-
-  <h2>Сборка — по инструкции ОГО</h2>
-  <ol id="stepList"></ol>
-
-  <h2>Что снято с фото</h2>
-  <div class="tablebox"><table>
-    <thead><tr><th>Деталь</th><th>Размер</th><th>Точность</th><th>Откуда</th></tr></thead>
-    <tbody id="measured"></tbody>
-  </table></div>
-  <p class="note">Мерили медовую кровать с птицами — на фото она под матрас 160. Камеру каждого фото находили по точкам с известным местом (высота 1100, боковина 210–395, длина 2100) и мерили в ней. Кровати на фото разные: у тёмной ножка сужается и изнутри, у медовой — только спереди.</p>
-</main>
-
-<footer class="wrap">Вращать — одним пальцем, приближать — двумя. Цены — с сайта o-go.by на 24 октября 2026, срок от 4 недель. «В комнату» — для айфона, в Safari.</footer>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -154,42 +118,22 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { USDZExporter } from 'three/addons/exporters/USDZExporter.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 
 // ── выбор
+// масла и ткани — отметки Лиды 25 окт (самые популярные); размеры — 160 и 180, только классическая
 const WOODS = [
-  { id: 'honey', name: 'Медовый дуб', hex: '#B5661C', k: 1.0 },
-  { id: 'oak', name: 'Дуб', hex: '#C99B63', k: 1.0 },
-  { id: 'dark', name: 'Тёмный дуб', hex: '#4E3626', k: 0.85 },
-  { id: 'maple', name: 'Клён', hex: '#E6CDA0', k: 0.4 },
+  { id: 'oak', name: 'Oak' },
+  { id: 'smoke5', name: 'Smoke 5 %' },
+  { id: 'chocolate', name: 'Chocolate' },
 ];
-const FABRICS = [
-  { id: 'birds', name: 'Узор с птицами', tex: true },
-  { id: 'green', name: 'Тёмно-зелёный бархат', hex: '#46524A', velvet: true },
-  { id: 'greige', name: 'Серо-бежевый', hex: '#9A8A78' },
-  { id: 'grey', name: 'Серый', hex: '#8C8A82' },
-  { id: 'brown', name: 'Коричневый', hex: '#5A4846' },
-  { id: 'mustard', name: 'Горчичный', hex: '#B98A2C' },
+const FABRICS = [   // цвет — с образца тканей, свет фото выровнен по белому фону
+  { id: 'light', name: 'Светлая серо-бежевая', hex: '#DCCCBB' },
+  { id: 'taupe', name: 'Серо-коричневая', hex: '#7A6E68' },
 ];
-const SIZES = { h: [140, 160, 180, 200], n: [120, 140, 160, 180] };
-const PRICES = { h: { 140: 4200, 160: 4500, 180: 4800, 200: 5200 }, n: { 120: 2700, 140: 2800, 160: 2900, 180: 3200 } };
-const state = { head: 'h', size: 180, wood: 'honey', fabric: 'birds' };
-
-const MEASURED = [
-  ['Труба рамки изголовья', 'Ø 50', '±3', 'фото 08'],
-  ['Гнутый уголок, радиус по оси трубы', '63 (снаружи 88, внутри 38)', '±5', 'фото 08: две дуги, ошибка 2 px'],
-  ['Ножка у пола, поперёк × спереди назад', '50 × 34', '±4', 'фото 04 сбоку, 08 спереди'],
-  ['Мягкая панель глубже лица рамки', '6', '±5', 'фото 08; новые 1, 8, 9'],
-  ['Толщина боковины', '24', '±3', 'фото 2, по рулетке'],
-  ['Доска изножья', '27', '±3', 'фото 2'],
-  ['Угловая деталь изножья', '100 × 100, скругление R 20', '±5', 'фото 2, 3'],
-  ['Фанера ниже края боковины', '45', '±10', 'фото 04, 06, 08; новые 2, 9'],
-  ['Поперечина с ножками: от ног', '300', '±40', 'фото 2, по камере'],
-  ['Ножка-брусок; от боковины', '200 × 50; 270', '±20 / ±30', 'фото 2, 3, 09'],
-  ['Прорези в фанере', '110 × 16, ряды через 150', '±15', 'новое фото 12'],
-  ['Повтор ткани с птицами', '626 × 509', '±5', 'фото 08, выпрямлено'],
-];
-document.getElementById('measured').innerHTML = MEASURED.map(r =>
-  `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td><td>${r[3]}</td></tr>`).join('');
+const SIZES = { h: [160, 180] };
+const PRICES = { h: { 160: 4500, 180: 4800 } };
+const state = { head: 'h', size: 180, wood: 'oak', fabric: 'light' };
 
 // ── сцена
 const stage = document.getElementById('stage');
@@ -237,11 +181,30 @@ function tex(url, rep = 1) {
   t.anisotropy = maxAniso;
   return t;
 }
-const T = { wood: tex('tex/wood.jpg'), birds: tex('tex/birds.jpg'), weave: tex('tex/weave.jpg', 5), ply: tex('tex/ply.jpg') };
-
-// дерево: серая карта волокон × цвет масла; у клёна волокно спокойнее
+const T = { wood: {}, light: tex('tex/wood-light.webp'), fabric: tex('tex/fabric.webp'), ply: tex('tex/ply.jpg') };   // ткань — из её фото, плитка 400 мм
+// дуб: своя картинка на каждое масло (из фото). Сначала маленькая (60 КБ, видна сразу), потом полная —
+// только у выбранного масла; маленькие остальных подгружаются заранее, чтобы смена масла была мгновенной
+function woodTex(id) {
+  const rec = T.wood[id] || (T.wood[id] = { best: null, small: false, full: false });
+  const load = kind => {
+    rec[kind] = 'loading';
+    const x = loader.load(`tex/wood-${id}${kind === 'small' ? '-s' : ''}.webp`, () => {
+      if (kind === 'full' || !rec.best) rec.best = x;          // полная важнее маленькой
+      rec[kind] = true;
+      if (state.wood === id) applyWood();
+    });
+    x.colorSpace = THREE.SRGBColorSpace;
+    x.wrapS = x.wrapT = THREE.RepeatWrapping;
+    x.flipY = false;
+    x.anisotropy = maxAniso;
+  };
+  if (!rec.small) load('small');
+  if (state.wood === id && !rec.full) load('full');
+  return rec;
+}
+// бруски под фанерой: серая карта волокон × цвет
 function grainMaterial(hex, k, rough) {
-  const m = new THREE.MeshStandardMaterial({ map: T.wood, color: hex, roughness: rough, envMapIntensity: 0.55 });
+  const m = new THREE.MeshStandardMaterial({ map: T.light, color: hex, roughness: rough, envMapIntensity: 0.55 });
   m.userData.k = { value: k };
   m.onBeforeCompile = sh => {
     sh.uniforms.uK = m.userData.k;
@@ -255,10 +218,12 @@ function grainMaterial(hex, k, rough) {
   return m;
 }
 const MAT = {
-  wood: grainMaterial('#B5661C', 1, 0.52),
-  light: grainMaterial('#D8B48C', 0.6, 0.6),
-  fabric: new THREE.MeshPhysicalMaterial({ map: T.birds, roughness: 0.92, sheen: 0.35, sheenRoughness: 0.7, sheenColor: new THREE.Color('#ffffff'), envMapIntensity: 0.8 }),
-  felt: new THREE.MeshStandardMaterial({ color: '#B3ABA2', roughness: 1, envMapIntensity: 0.3 }),
+  // масло Rubio — матовое, блика почти нет. Рельефа пор нет: при приближении от него «дрожало» (25 окт).
+  // Цвет > 1 — поправка на свет сцены: вблизи дерево того же тона, что на её фото ножки (25 окт)
+  wood: new THREE.MeshStandardMaterial({ color: new THREE.Color(1.3, 1.24, 1.05), roughness: 0.62, envMapIntensity: 0.45 }),
+  light: grainMaterial('#D8B48C', 1, 0.6),
+  fabric: new THREE.MeshPhysicalMaterial({ map: T.fabric, roughness: 0.92, sheen: 0.45, sheenRoughness: 0.7, sheenColor: new THREE.Color('#ffffff'), envMapIntensity: 0.8 }),
+  felt: new THREE.MeshStandardMaterial({ color: '#CFCBC6', roughness: 1, envMapIntensity: 0.3 }),   // светло-серый, как на её фото задника
   plyA: new THREE.MeshStandardMaterial({ map: T.ply, color: '#D6B888', roughness: 0.72, envMapIntensity: 0.45 }),
   plyB: new THREE.MeshStandardMaterial({ map: T.ply, color: '#E2CDA3', roughness: 0.72, envMapIntensity: 0.45 }),
   metal: new THREE.MeshStandardMaterial({ color: '#9A9A96', metalness: 1, roughness: 0.35 }),
@@ -272,29 +237,24 @@ function materialFor(mesh) {
   if (m === 'Ткань') return MAT.fabric;
   if (m === 'Войлок') return MAT.felt;
   if (m === 'Фанера') return /малый/.test(n) ? MAT.plyB : MAT.plyA;
-  if (m === 'Металл') return MAT.nut;
+  if (m === 'Металл') return /шуруп/.test(n) ? MAT.metal : MAT.nut;   // шурупы не мигают на шагах с гайками
   if (m === 'Тень') return MAT.dark;
   return mesh.material;
 }
 function applyWood() {
-  const w = WOODS.find(x => x.id === state.wood);
-  MAT.wood.color.set(w.hex);
-  MAT.wood.userData.k.value = w.k;
-  MAT.wood.roughness = w.id === 'dark' ? 0.58 : 0.52;
+  const rec = woodTex(state.wood);
+  if (!rec.best || MAT.wood.map === rec.best) return;
+  const fresh = !MAT.wood.map;
+  MAT.wood.map = rec.best;
+  if (fresh) MAT.wood.needsUpdate = true;
   requestRender();
   if (typeof scheduleAR === 'function') scheduleAR();
 }
 function applyFabric() {
-  const f = FABRICS.find(x => x.id === state.fabric), m = MAT.fabric;
-  if (f.tex) { m.map = T.birds; m.color.setScalar(1.3); m.sheen = 0.3; m.sheenColor.set('#ffffff'); }   // ткань с фото — светлее, как на фото
-  else {
-    m.map = T.weave; m.color.set(f.hex);
-    m.sheen = f.velvet ? 1.0 : 0.45;
-    m.sheenColor.set(f.velvet ? '#9fb0a3' : '#ffffff');
-    m.sheenRoughness = f.velvet ? 0.45 : 0.7;
-  }
-  m.needsUpdate = true;
+  const f = FABRICS.find(x => x.id === state.fabric);
+  MAT.fabric.color.set(f.hex);
   requestRender();
+  if (typeof scheduleAR === 'function') scheduleAR();
 }
 
 // ── модели
@@ -351,7 +311,7 @@ function view(kind) {
   const d = dims(), L = d ? d['длина'] / 1000 : 2.1;
   const c = new THREE.Vector3(0, 0.45, -L / 2);
   const P = {
-    q: [[2.18, 1.46, -3.98], [0.05, 0.42, -1.05]],     // как на фото 07
+    q: [[2.18, 1.46, -3.98], [0.2, 0.42, -1.05]],      // как на фото 07
     front: [[0, 1.25, -L - 3.4], [0, 0.5, -L / 2 + 0.2]],
     side: [[4.2, 1.15, -L / 2], [0, 0.45, -L / 2]],
     back: [[-1.7, 1.25, 2.4], [0, 0.6, -0.5]],
@@ -359,7 +319,8 @@ function view(kind) {
   }[kind];
   const pos = new THREE.Vector3(...P[0]), tgt = new THREE.Vector3(...P[1]);
   const aspect = camera.aspect || 1;
-  const s = aspect < 1 ? Math.min(2.3, 1.25 / aspect) : (aspect < 1.3 ? 1.15 : 1);   // на телефоне — дальше, чтобы влезла вся кровать
+  // на телефоне — дальше, чтобы влезла вся кровать (виды с ног, сбоку, сверху — не так далеко, как «как на фото»)
+  const s = aspect < 1 ? (kind === 'q' ? Math.min(2.5, 1.4 / aspect) : Math.min(1.5, 1.15 / aspect)) : (aspect < 1.3 ? 1.15 : 1);
   camera.position.copy(pos.sub(tgt).multiplyScalar(s).add(tgt));
   controls.target.copy(tgt);
   controls.update();
@@ -376,6 +337,7 @@ function requestRender() {
   requestAnimationFrame(() => { pending = false; renderer.render(scene, camera); });
 }
 controls.addEventListener('change', requestRender);
+if (location.hash === '#dbg') window.dbg = { THREE, scene, camera, controls, requestRender, state, MAT, T, view };   // проверочные кадры
 function resize() {
   const w = stage.clientWidth, h = stage.clientHeight;
   renderer.setSize(w, h, false);
@@ -385,28 +347,18 @@ function resize() {
 }
 new ResizeObserver(resize).observe(stage);
 
-// ── сборка по шагам (инструкция ОГО; без изголовья — моё, по той же логике)
+// ── сборка по шагам (инструкция ОГО)
 const STEPS = {
   h: [
-    { t: 'Три бруса вставить шкантами в поперечину с ножками и прикрутить. Комплект №1: 6 шкантов, винты Torx T25.', re: /^(Поперечина|Ножка_брусок|Брус_вдоль)/, from: [0, 0.6, 0] },
-    { t: 'Брусья прикрутить к царге изголовья, по 3 винта. Изголовье неустойчиво — это делают вдвоём.', re: /^(Изголовье|Брусок_царги)/, from: [0, 0.15, 0.9] },
-    { t: 'Боковины надеть на шпильки М8 в ножках изголовья, шпильки вкрутить до ленты. Комплект №2.', re: /^(Боковина|Брусок_боковины|Гайка_М8)/, from: 'side' },
-    { t: 'Гайки М8 затянуть ключом на 13 — через карман на внутренней стороне боковины.', pulse: /^Гайка_М8_(лев|прав)/ },
-    { t: 'В угловые детали изножья вкрутить шпильки М6 до ленты. Комплект №3.', re: /^(П_изножье|Брусок_изножье|Гайка_М6)/, from: [0, 0, -1.0], hold: [0, 0, -0.32] },
-    { t: 'Изножье надеть на боковины. Перед затяжкой выровнять плоскость, гайки М6 — ключом на 10.', move: /^(П_изножье|Брусок_изножье|Гайка_М6)/, pulse: /^Гайка_М6_(лев|прав)/ },
-    { t: 'Фанера: 4 листа по номерам, 100 шурупов 3×25, Torx T10, слегка утопить. Листы выравнивают основание.', re: /^Фанера/, from: [0, 0.5, 0], stagger: true },
-  ],
-  n: [
-    { t: 'Три бруса — между двумя поперечинами с ножками (моё: как у кровати с изголовьем).', re: /^(Поперечина|Ножка_брусок|Брус_вдоль)/, from: [0, 0.6, 0] },
-    { t: 'Боковины с брусками под фанеру.', re: /^(Боковина|Брусок_боковины)/, from: 'side' },
-    { t: 'Торцы-«П» у головы и у ног на шпильки М6.', re: /^(П_|Брусок_изножье|Брусок_торец|Гайка)/, from: 'end' },
-    { t: 'Гайки М6 затянуть ключом на 10, перед затяжкой выровнять плоскость.', pulse: /^Гайка_М6_(лев|прав)/ },
-    { t: 'Фанера: 4 листа, шурупы 3×25.', re: /^Фанера/, from: [0, 0.5, 0], stagger: true },
+    { t: 'Основание: поперечина с ножками и три бруса.', re: /^(Поперечина|Ножка_брусок|Брус_вдоль)/, from: [0, 0.6, 0] },
+    { t: 'Изголовье — к брусьям.', re: /^(Изголовье|Брусок_царги)/, from: [0, 0.15, 0.9] },
+    { t: 'Боковины — на шпильки в ножках изголовья, гайка изнутри.', re: /^(Боковина|Брусок_боковины|Гайка_М8)/, from: 'side', pulse: /^Гайка_М8_(лев|прав)/ },
+    { t: 'Изножье — на шпильки в боковинах.', re: /^(П_изножье|Брусок_изножье|Гайка_М6)/, from: [0, 0, -1.0], pulse: /^Гайка_М6_(лев|прав)/ },
+    { t: 'Фанера — четыре листа.', re: /^Фанера/, from: [0, 0.5, 0], stagger: true },
   ],
 };
 const stepsBox = document.getElementById('steps');
 const stepText = document.getElementById('stepText');
-const stepList = document.getElementById('stepList');
 let curStep = -1;
 function buildStepButtons() {
   stepsBox.querySelectorAll('button').forEach(b => b.remove());
@@ -420,9 +372,8 @@ function buildStepButtons() {
   });
   const all = document.createElement('button');
   all.type = 'button'; all.textContent = 'Целиком'; all.setAttribute('aria-pressed', 'true');
-  all.addEventListener('click', () => { stepAll(); scheduleAR(); stepText.textContent = 'Кровать целиком. Шаги сборки — кнопки слева.'; });
+  all.addEventListener('click', () => { stepAll(); scheduleAR(); stepText.textContent = 'Кровать целиком.'; });
   stepsBox.append(all);
-  stepList.innerHTML = S.map(s => `<li>${s.t}</li>`).join('');
 }
 function firstStep(o) {
   const S = STEPS[state.head];
@@ -509,8 +460,8 @@ function swatch(box, list, kindKey, chipFor, onPick) {
     box.append(b);
   });
 }
-swatch(document.getElementById('wood'), WOODS, 'wood', w => `background:${w.hex}`, applyWood);
-swatch(document.getElementById('fabric'), FABRICS, 'fabric', f => f.tex ? `background-image:url(tex/birds.jpg);background-size:220%` : `background:${f.hex}`, applyFabric);
+swatch(document.getElementById('wood'), WOODS, 'wood', w => `background:url(tex/chip-${w.id}.jpg) center/cover`, applyWood);
+swatch(document.getElementById('fabric'), FABRICS, 'fabric', f => `background:${f.hex}`, applyFabric);
 
 function buildSizes() {
   const box = document.getElementById('size');
@@ -524,128 +475,17 @@ function buildSizes() {
     box.append(b);
   });
 }
-document.querySelectorAll('#head button').forEach(b => b.addEventListener('click', () => {
-  state.head = b.dataset.head;
-  document.querySelectorAll('#head button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-  if (!SIZES[state.head].includes(state.size)) state.size = state.head === 'h' ? 140 : 180;
-  buildSizes(); buildStepButtons(); loadBed(); update();
-  stepText.textContent = 'Крутить — одним пальцем, приближать — двумя. Шаги сборки — кнопки, как в инструкции.';
-}));
 
 const fmt = n => n.toLocaleString('ru-RU');
 function update() {
-  const d = dims();
-  const p = PRICES[state.head][state.size];
-  document.getElementById('price').textContent = `${fmt(p)} BYN`;
-  const wood = WOODS.find(w => w.id === state.wood).name.toLowerCase();
-  const fab = FABRICS.find(f => f.id === state.fabric).name.toLowerCase();
-  document.getElementById('priceNote').textContent =
-    `${state.head === 'h' ? 'с мягким изголовьем' : 'без изголовья'}, матрас ${state.size} × 200, ${wood}${state.head === 'h' ? ', ' + fab : ''} · цена с сайта o-go.by · срок от 4 недель`;
-  const fo = document.getElementById('fabricOpt');
-  fo.setAttribute('aria-disabled', String(state.head !== 'h'));
-  fo.querySelectorAll('button').forEach(b => b.disabled = state.head !== 'h');
-  const ar = document.getElementById('ar');
+  document.getElementById('price').textContent = `${fmt(PRICES[state.head][state.size])} BYN`;
   scheduleAR();
-  if (!d) return;
-  const W = d['ширина'], B = d['ширина_основания'], L = d['длина'], H = d['высота'];
-  document.getElementById('facts').innerHTML = [
-    [`${fmt(W)} × ${fmt(L)} × ${fmt(H)}`, 'ширина × длина × высота, мм'],
-    [`${state.size * 10} × 2000`, 'матрас, мм'],
-    [`${d['низ_боковины']} / ${d['верх_боковины']}`, 'боковина от пола: низ / верх'],
-    [`${d['верх_боковины'] - d['верх_фанеры']}`, 'фанера ниже края, мм'],
-    state.head === 'h' ? [`Ø ${d['труба']}`, 'труба рамки, мм'] : [`${fmt(B)}`, 'ширина основания, мм'],
-    state.head === 'h' ? [`${d['ножка_у_пола'][0]} × ${d['ножка_у_пола'][1]}`, 'ножка у пола, мм'] : [`${d['брусок'][0]} × ${d['брусок'][1]}`, 'ножка-брусок, мм'],
-  ].map(([b, s]) => `<div class="fact"><b>${b}</b><span>${s}</span></div>`).join('');
-  drawSheet(d);
-}
-
-// ── лист размеров (SVG, мм); FS — размер подписи, от ширины чертежа
-let FS = 60;
-function dimH(x1, x2, y, label, up = true) {
-  const o = up ? -0.45 : 1.05, k = FS * 0.35;
-  return `<path class="d" d="M${x1} ${y}H${x2}M${x1} ${y - k}v${2 * k}M${x2} ${y - k}v${2 * k}"/><text x="${(x1 + x2) / 2}" y="${y + o * FS}" text-anchor="middle" font-size="${FS}">${label}</text>`;
-}
-function dimV(x, y1, y2, label, left = true) {
-  const k = FS * 0.35;
-  return `<path class="d" d="M${x} ${y1}V${y2}M${x - k} ${y1}h${2 * k}M${x - k} ${y2}h${2 * k}"/><text x="${x + (left ? -0.3 : 0.3) * FS}" y="${(y1 + y2) / 2 + FS * 0.35}" text-anchor="${left ? 'end' : 'start'}" font-size="${FS}">${label}</text>`;
-}
-function rr(x, y, w, h, r) { return `M${x + r} ${y}H${x + w - r}A${r} ${r} 0 0 1 ${x + w} ${y + r}V${y + h}H${x}V${y + r}A${r} ${r} 0 0 1 ${x + r} ${y}Z`; }
-function drawSheet(d) {
-  const head = d['с_изголовьем'], B = d['ширина_основания'], L = d['длина'], WH = head ? d['ширина'] : B;
-  const zb = d['низ_боковины'], zt = d['верх_боковины'], zp = d['верх_фанеры'];
-  const fy = z => 1150 - z;                     // вверх — меньше y
-  let front = '', side = '', plan = '';
-  // С ног
-  {
-    const xh = WH / 2, xb = B / 2;
-    FS = (WH + 900) / 19;
-    let g = '';
-    if (head) {
-      g += `<path class="o" d="${rr(-xh, fy(1100), WH, 1100 - zb, 88)}"/>`;
-      g += `<path class="f" d="${rr(-xh + 50, fy(1050), WH - 100, 1050 - zt, 38)}"/>`;
-      g += `<path class="o" d="M${-xh} ${fy(zb)}V${fy(0)}h50V${fy(zb)}M${xh - 50} ${fy(zb)}V${fy(0)}h50V${fy(zb)}"/>`;
-    }
-    g += `<path class="o" d="M${-xb} ${fy(zt)}H${xb}V${fy(zb)}H${-xb}Z M${-xb + 100} ${fy(zt)}V${fy(zb)}M${xb - 100} ${fy(zt)}V${fy(zb)}"/>`;
-    const b1 = xb - d['брусок_от_края'], b0 = b1 - d['брусок'][0];
-    g += `<path class="o" d="M${-b1} ${fy(zb)}V${fy(0)}H${-b0}V${fy(zb)}M${b0} ${fy(zb)}V${fy(0)}H${b1}V${fy(zb)}"/>`;
-    g += `<path class="t" d="M${-xb - 60} ${fy(0)}H${xb + 60}"/>`;
-    g += dimH(-xh, xh, fy(head ? 1100 : zt) - FS * 0.9, fmt(WH));
-    if (head) g += dimH(-xb, xb, fy(0) + FS * 0.7, fmt(B), false);
-    g += dimV(-xh - FS * 0.8, fy(head ? 1100 : zt), fy(0), head ? '1100' : String(zt));
-    g += dimV(xh + FS * 0.6, fy(zt), fy(0), String(zt), false) + dimV(xh + FS * 3.2, fy(zb), fy(0), String(zb), false);
-    const top = head ? 1100 : zt;
-    front = `<svg viewBox="${-xh - FS * 3.6} ${fy(top) - FS * 2.2} ${WH + FS * 9} ${top + FS * 4.4}" role="img" aria-label="Вид с ног">${g}</svg>`;
-  }
-  // Сбоку (изголовье слева)
-  {
-    FS = (L + 900) / 24;
-    let g = '';
-    const y0 = head ? 0 : 0;
-    if (head) {
-      g += `<path class="o" d="M0 ${fy(1100)}H50V${fy(zb)}L34 ${fy(0)}H0Z"/>`;
-      g += `<path class="f" d="M14 ${fy(1050)}H44V${fy(zt)}H14Z"/>`;
-    }
-    const r0 = head ? 42 : 0;
-    g += `<path class="o" d="M${r0} ${fy(zt)}H${L}V${fy(zb)}H${r0}Z M${L - 100} ${fy(zt)}V${fy(zb)}${head ? '' : `M100 ${fy(zt)}V${fy(zb)}`}"/>`;
-    g += `<path class="t" d="M${head ? 60 : 27} ${fy(zp)}H${L - 27}"/>`;
-    const cy = L - d['поперечина_от_ног'];
-    g += `<path class="o" d="M${cy - 45} ${fy(zb)}V${fy(0)}H${cy + 5}V${fy(zb)}"/>`;
-    if (!head) g += `<path class="o" d="M${d['поперечина_от_ног'] - 5} ${fy(zb)}V${fy(0)}H${d['поперечина_от_ног'] + 45}V${fy(zb)}"/>`;
-    g += `<path class="t" d="M-60 ${fy(0)}H${L + 60}"/>`;
-    g += dimH(0, L, fy(head ? 1100 : zt) - FS * 0.9, fmt(L));
-    g += dimH(cy, L, fy(0) + FS * 0.7, String(d['поперечина_от_ног']), false);
-    g += dimV(L + FS * 0.6, fy(zt), fy(zp), String(zt - zp), false);
-    const top = head ? 1100 : zt;
-    side = `<svg viewBox="${-FS * 1.5} ${fy(top) - FS * 2.2} ${L + FS * 5} ${top + FS * 4.4}" role="img" aria-label="Вид сбоку">${g}</svg>`;
-  }
-  // Сверху
-  {
-    const xb = B / 2, xh = WH / 2;
-    FS = (WH + 900) / 19;
-    let g = '';
-    if (head) g += `<path class="o" d="M${-xh} 0H${xh}V50H${-xh}Z"/>`;
-    g += `<path class="o" d="M${-xb} ${head ? 42 : 0}H${xb}V${L - 20}A20 20 0 0 1 ${xb - 20} ${L}H${-xb + 20}A20 20 0 0 1 ${-xb} ${L - 20}Z"/>`;
-    const xi = xb - 24, ya = head ? 60 : 27, yb = L - 27;
-    g += `<path class="f" d="M${-xi} ${ya}H${xi}V${yb}H${-xi}Z"/>`;
-    const seam = L - d['поперечина_от_ног'] - 20;
-    g += `<path class="o" d="M0 ${ya}V${yb}M0 ${seam}H${xi}M${-xi} ${seam - 230}H0"/>`;
-    g += dimH(-xb, xb, -FS * 0.9, fmt(B));
-    g += dimV(xb + FS * 0.6, 0, L, fmt(L), false);
-    g += `<text x="0" y="${L / 2}" text-anchor="middle" font-size="${FS}">${state.size * 10} × 2000</text>`;
-    plan = `<svg viewBox="${-xh - FS * 0.8} ${-FS * 2.2} ${WH + FS * 5.4} ${L + FS * 3}" role="img" aria-label="Вид сверху">${g}</svg>`;
-  }
-  document.getElementById('sheet').innerHTML =
-    `<div class="view"><h3>С ног</h3>${front}</div><div class="view"><h3>Сверху</h3>${plan}</div><div class="view wide"><h3>Сбоку</h3>${side}</div>`;
 }
 
 // ── «в комнату»: на айфоне страница сама собирает файл .usdz из того, что выбрано
 const arOK = document.createElement('a').relList.supports('ar');
 const arLink = document.getElementById('ar');
-const arNote = document.getElementById('arNote');
 let arURL = null, arTimer = null, arBusy = false;
-arNote.textContent = arOK
-  ? '«В комнату» — кровать в выбранном размере, дереве и ткани, в натуральную величину. Кнопка появляется через пару секунд после выбора.'
-  : '«В комнату» — кнопка появится на айфоне в Safari: кровать в натуральную величину в вашей комнате.';
 function scheduleAR() {
   if (!arOK) return;
   clearTimeout(arTimer);
@@ -656,17 +496,141 @@ async function makeAR() {
   if (!bed || curStep !== -1 || arBusy) { if (arOK) arTimer = setTimeout(makeAR, 1500); return; }
   arBusy = true;
   try {
-    const r = new USDZExporter().parse(bed, { quickLookCompatible: true, maxTextureSize: 1024 });
-    const data = r instanceof Promise ? await r : r;
+    const data = await withPlainWood(async () => {
+      const r = new USDZExporter().parse(bed, { quickLookCompatible: true, maxTextureSize: 1024 });
+      return r instanceof Promise ? await r : r;
+    });
     if (arURL) URL.revokeObjectURL(arURL);
     arURL = URL.createObjectURL(new Blob([data], { type: 'model/vnd.usdz+zip' }));
     arLink.href = arURL;
     arLink.hidden = false;
   } catch (e) {
-    arNote.textContent = '«В комнату» не собралось на этом устройстве.';
+    arLink.hidden = true;
   }
   arBusy = false;
 }
+
+// поправка цвета дерева (1,3) — только для света этой сцены; в файлы — картинка как есть
+async function withPlainWood(fn) {
+  const keep = MAT.wood.color.clone();
+  MAT.wood.color.setRGB(1, 1, 1);
+  try { return await fn(); } finally { MAT.wood.color.copy(keep); }
+}
+
+// ── скачать 3D-модель под выбор: .fbx и .obj (собраны в Blender) + картинки + .glb из этой сцены
+const dlBtn = document.getElementById('dl'), dlNote = document.getElementById('dlNote');
+const DL_NOTE = dlNote.textContent;
+const LATIN = { oak: 'Oak', smoke5: 'Smoke5', chocolate: 'Chocolate', light: 'svetlaya', taupe: 'sero-korichnevaya' };
+function srgbToLin(c) { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }
+function linToSrgb(c) { return 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055); }
+async function fabricJpeg(hex) {             // серая ткань × цвет выбранной ткани (как на странице)
+  const img = T.fabric.image;
+  const cv = document.createElement('canvas');
+  cv.width = img.width; cv.height = img.height;
+  const g = cv.getContext('2d');
+  g.drawImage(img, 0, 0);
+  const px = g.getImageData(0, 0, cv.width, cv.height);
+  const c = [1, 3, 5].map(i => srgbToLin(parseInt(hex.slice(i, i + 2), 16)));
+  const lut = new Float32Array(256).map((_, v) => srgbToLin(v));
+  for (let i = 0; i < px.data.length; i += 4)
+    for (let k = 0; k < 3; k++) px.data[i + k] = linToSrgb(lut[px.data[i + k]] * c[k]);
+  g.putImageData(px, 0, 0);
+  return new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9));
+}
+function glb() {
+  [T.fabric, T.ply, T.light, MAT.wood.map].forEach(t => { if (t) t.userData.mimeType = 'image/jpeg'; });
+  return withPlainWood(() => new Promise((ok, bad) =>
+    new GLTFExporter().parse(bed, ok, bad, { binary: true, maxTextureSize: 4096 })));
+}
+function readme(d, wood, fab) {
+  return [
+    'Кровать с мягким изголовьем — мастерская ОГО, Минск (o-go.by)',
+    `Матрас ${state.size * 10} × 2000 мм; кровать ${d ? `${d['ширина']} × ${d['длина']} × ${d['высота']}` : ''} мм`,
+    `Дуб, масло Rubio Monocoat ${wood}; ткань изголовья — ${fab}`,
+    '',
+    'bed.fbx — 3ds Max, ArchiCAD, Cinema 4D, Revit (как импорт)',
+    'bed.obj + bed.mtl — почти любая программа; ось Z вверх, как в ArchiCAD, SketchUp, 3ds Max',
+    'bed.glb — всё в одном файле, с текстурами (Blender, SketchUp с расширением, сайты)',
+    'wood.jpg, fabric.jpg, plywood.jpg, bars.jpg — текстуры, .fbx и .obj берут их по имени из этой папки',
+    '',
+    'Натуральная величина, единицы — метры. Начало координат — на полу, по центру ширины,',
+    'у задней плоскости изголовья. Одна деталь кровати — один объект.',
+  ].join('\r\n');
+}
+async function saveFile(blob, filename) {
+  const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
+  if (dl) {
+    try { await dl.save({ filename, data: blob }); return 'Готово: архив сохранён.'; }
+    catch (e) { return e && e.code === 'declined' ? DL_NOTE : 'Скачивание здесь недоступно — откройте страницу на сайте ОГО.'; }
+  }
+  if (window.claude) return 'Скачивание здесь недоступно — откройте страницу на сайте ОГО.';
+  const a = document.createElement('a');           // обычный сайт: обычная ссылка
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.append(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+  return 'Готово: архив скачивается.';
+}
+async function makeZip() {
+  if (curStep !== -1) stepAll();                    // в файл — кровать целиком, на своих местах
+  const w = WOODS.find(x => x.id === state.wood), f = FABRICS.find(x => x.id === state.fabric);
+  const name = `OGO-krovat-${state.size}-${LATIN[w.id]}-${LATIN[f.id]}`;
+  const j = await fetch(`download/h${state.size}.json`).then(r => r.json());
+  const blobOf = url => fetch(url).then(r => r.blob());
+  const zip = new JSZip(), dir = zip.folder(name);
+  dir.file('bed.fbx', j.fbx, { base64: true });
+  dir.file('bed.obj', j.obj, { base64: true });
+  dir.file('bed.mtl', j.mtl);
+  dir.file('wood.jpg', await blobOf(`tex/wood-${w.id}.jpg`));
+  dir.file('fabric.jpg', await fabricJpeg(f.hex));
+  dir.file('plywood.jpg', await blobOf('download/plywood.jpg'));
+  dir.file('bars.jpg', await blobOf('download/bars.jpg'));
+  dir.file('bed.glb', await glb());
+  dir.file('README.txt', readme(dims(), w.name, f.name.toLowerCase()));
+  return { name: name + '.zip', blob: await zip.generateAsync({ type: 'blob' }) };
+}
+dlBtn.addEventListener('click', async () => {
+  if (!bed || typeof JSZip === 'undefined') return;
+  dlBtn.disabled = true;
+  dlNote.textContent = 'Собираю архив…';
+  try {
+    const { name, blob } = await makeZip();
+    dlNote.textContent = await saveFile(blob, name);
+  } catch (e) {
+    dlNote.textContent = 'Архив не собрался. Обновите страницу и попробуйте ещё раз.';
+  }
+  dlBtn.disabled = false;
+});
+if (location.hash === '#dbg') window.dbg.makeZip = makeZip;
+
+// ── «В интерьер»: фото своей комнаты — фоном, кровать поверх; повернуть, подвинуть, приблизить
+const roomBtn = document.getElementById('roomBtn'), roomOff = document.getElementById('roomOff');
+const roomFile = document.getElementById('roomFile');
+const HINT = 'Крутить — одним пальцем, приближать — двумя.';
+let roomURL = null;
+roomBtn.addEventListener('click', () => roomFile.click());
+roomFile.addEventListener('change', () => {
+  const f = roomFile.files && roomFile.files[0];
+  if (!f) return;
+  if (roomURL) URL.revokeObjectURL(roomURL);
+  roomURL = URL.createObjectURL(f);
+  stage.style.backgroundImage = `url(${roomURL})`;
+  stage.classList.add('room');
+  roomOff.hidden = false;
+  roomBtn.textContent = 'Другое фото';
+  stepText.textContent = 'Одним пальцем — повернуть кровать, двумя — подвинуть и приблизить, чтобы встала на пол.';
+  roomFile.value = '';
+});
+roomOff.addEventListener('click', () => {
+  stage.style.backgroundImage = '';
+  stage.classList.remove('room');
+  if (roomURL) URL.revokeObjectURL(roomURL);
+  roomURL = null;
+  roomOff.hidden = true;
+  roomBtn.textContent = 'В интерьер';
+  stepText.textContent = HINT;
+});
 
 // ── старт
 let DIMS = null;
@@ -678,4 +642,5 @@ applyFabric();
 update();
 resize();
 loadBed();
+setTimeout(() => WOODS.forEach(w => woodTex(w.id)), 2500);   // маленькие картинки других масел — заранее
 </script>
