@@ -126,14 +126,14 @@
 
 <section class="panel gut" aria-label="Выбор">
   <div class="pick">
-    <div class="grp"><span class="lab">Ткань</span><div class="sw" id="fabric"></div></div>
-    <div class="grp r"><span class="lab">Масло</span><div class="sw" id="wood"></div></div>
+    <div class="grp"><span class="lab">Масло</span><div class="sw" id="wood"></div></div>
+    <div class="grp r"><span class="lab">Ткань</span><div class="sw" id="fabric"></div></div>
   </div>
   <div class="mid">
     <span class="lab">Матрас, см</span>
     <div class="seg" id="size" role="group" aria-label="Матрас"></div>
   </div>
-  <div id="chosen" class="hint">Выберите цвет ткани и масла</div>
+  <div id="chosen" class="hint">Выберите цвет масла и ткани</div>
   <div class="acts">
     <button type="button" id="resetBtn"><span class="mini" aria-hidden="true"></span>Без цвета</button>
     <button type="button" id="asmBtn" aria-pressed="false">Сборка</button>
@@ -357,16 +357,20 @@ function grainMaterial(hex, k, rough) {
   return m;
 }
 // «белая, пока не выбрали»: у материала uWhite — 1 белый, 0 свой цвет; переход — «окрашивание»
-const WHITE_LIN = 1.0;   // её «чуть более светлым… побелее», 25 окт, вечер (было 0,9)
-function paintable(m, key) {
+// белая кровать — светло-серая, чтобы её было видно на белом (Лида, 25 окт, ночь: «серее, чтобы было видно лучше…
+// сейчас бледно, но нежно — не потерять»; было 1,0 — её «побелее», а до того 0,9); фанера — светлее рамки, как простыня
+const WHITE_LIN = 0.8, WHITE_PLY = 0.97;
+function paintable(m, key, white = WHITE_LIN) {
   m.userData.white = { value: 1 };
+  m.userData.whiteLevel = { value: white };
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (sh, r) => {
     if (prev) prev(sh, r);
     sh.uniforms.uWhite = m.userData.white;
-    sh.fragmentShader = 'uniform float uWhite;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+    sh.uniforms.uWhiteLevel = m.userData.whiteLevel;
+    sh.fragmentShader = 'uniform float uWhite;\nuniform float uWhiteLevel;\n' + sh.fragmentShader.replace('#include <color_fragment>',
       `#include <color_fragment>
-      diffuseColor.rgb = mix( diffuseColor.rgb, vec3( ${WHITE_LIN.toFixed(2)} ), uWhite );`);
+      diffuseColor.rgb = mix( diffuseColor.rgb, vec3( uWhiteLevel ), uWhite );`);
   };
   m.customProgramCacheKey = () => 'paint-' + key;      // у каждого материала своя программа: общая путала «белизну»
   return m;
@@ -410,7 +414,8 @@ MAT.plyEdge.onBeforeCompile = sh => {
     `#include <color_fragment>
     diffuseColor.rgb *= mix( vec3( 0.42, 0.33, 0.26 ), vec3( 1.0 ), smoothstep( 0.336, 0.3495, vWy ) );`);
 };
-['wood', 'light', 'fabric', 'plyA', 'plyB', 'dark'].forEach(k => paintable(MAT[k], k));
+['wood', 'light', 'fabric', 'dark'].forEach(k => paintable(MAT[k], k));
+['plyA', 'plyB'].forEach(k => paintable(MAT[k], k, WHITE_PLY));
 const WOOD_MATS = [MAT.wood, MAT.light, MAT.dark];   // окрашиваются с маслом; фанера — нет, остаётся белой (её просьба 25 окт)
 const painted = { wood: false, fabric: false };
 function paint(mats, to = 0) {                          // белое ↔ свой цвет за 0,7 с (to: 0 — цвет, 1 — белое)
@@ -727,7 +732,7 @@ function dropHint() {
 function update() {
   if (hintOn) return scheduleAR();
   const w = WOODS.find(x => x.id === state.wood), f = FABRICS.find(x => x.id === state.fabric);
-  chosen.textContent = [f && 'Ткань ' + f.name.toLowerCase(), w && 'масло Rubio ' + w.name].filter(Boolean).join(' · ');
+  chosen.textContent = [w && 'Масло Rubio ' + w.name, f && 'ткань ' + f.name.toLowerCase()].filter(Boolean).join(' · ');
   chosen.classList.toggle('fade', !w && !f);
   scheduleAR();
 }
