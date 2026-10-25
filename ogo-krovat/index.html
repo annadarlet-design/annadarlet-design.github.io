@@ -7,103 +7,129 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=PT+Mono&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Oswald:wght@300&display=swap">
 <style>
-  /* Мастерская ОГО: белый бумажный фон, медовый дуб, берёзовая фанера. Сверху кровать, под ней выбор, цена, размеры, сборка. */
+  /* В духе сайта ОГО: белый фон, Inter, тёмно-серые кнопки 5 px, светло-серые поля. Один экран телефона:
+     сверху 3D (виды и шаги сборки — поверх него), снизу панель: масло, ткань, размер, цена, три кнопки.
+     На широком экране — 3D слева, панель справа. Одна светлая тема, как у них на сайте. */
   :root {
-    --bg: #eeece8;
-    --panel: #f8f7f4;
-    --fg: #25211d;
-    --muted: #6a635b;
-    --line: #d8d2c9;
-    --accent: #95561c;
-    --accent-ink: #ffffff;
-    --sel: #25211d;
-    --font-body: "Golos Text", "Helvetica Neue", Arial, sans-serif;
-    --font-num: "PT Mono", ui-monospace, Menlo, monospace;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #181614; --panel: #211e1b; --fg: #ece6de; --muted: #a49b90; --line: #3a352f;
-      --accent: #dc9a5c; --accent-ink: #1b120a; --sel: #ece6de; color-scheme: dark;
-    }
-  }
-  :root[data-theme="dark"] {
-    --bg: #181614; --panel: #211e1b; --fg: #ece6de; --muted: #a49b90; --line: #3a352f;
-    --accent: #dc9a5c; --accent-ink: #1b120a; --sel: #ece6de; color-scheme: dark;
+    --bg: #ffffff;
+    --fg: #2c2c2c;
+    --muted: #777777;
+    --line: #dddddd;
+    --field: #f8f8f8;
+    --ink: #2c2c2c;
+    --ink-fg: #ffffff;
+    --stage: #ffffff;
+    --font: "Inter", "Helvetica Neue", Arial, sans-serif;
+    --font-logo: "Oswald", "Arial Narrow", sans-serif;
+    color-scheme: light;
   }
   [hidden] { display: none !important; }
-  html, body { margin: 0; }
-  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5; }
-  .wrap { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); max-width: 980px; margin: 0 auto; }
-  header.wrap { padding-block: 14px 6px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; }
-  h1 { font-size: 20px; font-weight: 600; margin: 0; text-wrap: balance; }
-  header p { margin: 0; color: var(--muted); font-size: 14px; }
-  #stage { position: relative; height: 60svh; min-height: 330px; max-height: 720px; touch-action: none; }
-  #stage canvas { display: block; width: 100%; height: 100%; }
-  #stage.room { background-size: cover; background-position: center; background-repeat: no-repeat; }
-  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; pointer-events: none; }
-  button, .btn { font: inherit; font-size: 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--panel); color: var(--fg); padding: 7px 12px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
-  button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  button[aria-pressed="true"] { background: var(--sel); color: var(--bg); border-color: var(--sel); }
-  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  .bar { padding-block: 10px 4px; display: grid; gap: 8px; }
-  .bar .lab { color: var(--muted); font-size: 13px; min-width: 64px; }
-  #ar { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 500; }
-  #ar img { width: 18px; height: 18px; }
-  #stepText { color: var(--fg); font-size: 14px; margin: 0; min-height: 3em; max-width: 68ch; }
-  .config { padding-block: 8px 6px; display: grid; gap: 14px; }
-  .opt { display: grid; gap: 6px; }
-  .opt > .lab { font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
-  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
-  .sw button { padding: 6px 10px 6px 6px; }
-  .chip { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); flex: none; background-size: cover; background-position: center; }
-  .sw button[aria-pressed="true"] .chip { border-color: var(--accent-ink); }
-  .price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
-  .price b { font-family: var(--font-num); font-weight: 400; font-size: 26px; font-variant-numeric: tabular-nums; }
-  .price span { color: var(--muted); font-size: 13px; }
-  .dl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
-  #dl { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 500; }
-  #dl[disabled] { opacity: .6; cursor: progress; }
-  #dlNote { color: var(--muted); font-size: 13px; max-width: 52ch; min-width: 0; }
-  footer { padding-block: 22px 30px; color: var(--muted); font-size: 13px; }
-  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font); font-weight: 300; font-size: 14px; line-height: 1.4;
+         display: flex; flex-direction: column; overflow: hidden; }
+  .gut { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  header { flex: none; display: flex; align-items: center; gap: 12px; padding-block: 8px; border-bottom: 1px solid var(--line); }
+  .logo { font-family: var(--font-logo); font-weight: 300; font-size: 26px; line-height: 1; letter-spacing: 0.02em; color: #000; }
+  h1 { margin: 0; font-size: 14px; font-weight: 400; color: var(--fg); }
+  #stage { position: relative; flex: 1 1 auto; min-height: 220px; background: var(--stage); touch-action: none; overflow: hidden; }
+  #stage canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+  #loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); pointer-events: none; }
+  /* поверх 3D */
+  .over { position: absolute; left: 0; right: 0; display: flex; gap: 6px; padding: 8px max(10px, env(safe-area-inset-left, 0px));
+          pointer-events: none; overflow-x: auto; scrollbar-width: none; }
+  .over > * { pointer-events: auto; }
+  .over.top { top: 0; align-items: flex-start; justify-content: space-between; }
+  .over.bot { bottom: 0; justify-content: center; }
+  .pill { font: inherit; font-size: 12px; font-weight: 400; border: 1px solid rgba(0,0,0,.08); border-radius: 5px; background: rgba(255,255,255,.88);
+          color: var(--fg); padding: 6px 10px; cursor: pointer; white-space: nowrap; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .pill[aria-pressed="true"] { background: var(--ink); color: var(--ink-fg); border-color: var(--ink); }
+  #steps .pill { min-width: 36px; }
+  #stepText { margin: 0; font-size: 12px; font-weight: 400; color: var(--fg); background: rgba(255,255,255,.88); border-radius: 5px; padding: 6px 10px;
+              max-width: 30ch; pointer-events: none; transition: opacity .4s; }
+  #stepText.fade { opacity: 0; }
+  #ar { display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
+  #ar img { width: 14px; height: 14px; }
+  #toast { position: absolute; left: 50%; bottom: 52px; transform: translateX(-50%); max-width: calc(100% - 32px); font-size: 12px; font-weight: 400;
+           background: var(--ink); color: var(--ink-fg); border-radius: 5px; padding: 8px 12px; pointer-events: none; text-align: center; }
+  body.asm #views { display: none; }
+  body:not(.asm) #steps { display: none; }
+  /* панель */
+  .panel { flex: none; display: grid; gap: 10px; border-top: 1px solid var(--line); padding-block: 12px max(12px, env(safe-area-inset-bottom, 0px)); background: var(--bg); }
+  .lab { font-size: 12px; color: var(--muted); }
+  .pick { display: grid; grid-template-columns: auto 1fr auto; align-items: end; gap: 10px; }
+  .grp { display: grid; gap: 6px; }
+  .grp.r { justify-items: end; }
+  .sw { display: flex; gap: 5px; }
+  .sw button { position: relative; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+               background: transparent center / contain no-repeat; filter: drop-shadow(0 2px 2px rgba(0,0,0,.1)); }
+  .sw button[aria-pressed="true"]::after { content: ""; position: absolute; left: 50%; bottom: -9px; width: 6px; height: 6px;
+               margin-left: -3px; border-radius: 50%; background: var(--ink); }
+  .mid { display: grid; justify-items: center; gap: 5px; min-width: 0; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 5px; background: var(--field); overflow: hidden; }
+  .seg button { font: inherit; font-size: 13px; border: 0; background: transparent; color: var(--fg); padding: 6px 9px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--ink-fg); font-weight: 400; }
+  #price { font-size: 15px; font-weight: 400; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #chosen { font-size: 12px; color: var(--muted); min-height: 1.4em; text-align: center; margin-top: 4px; }
+  .acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .acts button { font: inherit; font-size: 13px; font-weight: 600; height: 44px; border-radius: 5px; border: 1px solid var(--ink);
+                 background: var(--bg); color: var(--fg); cursor: pointer; padding: 0 6px; }
+  .acts button.main { background: var(--ink); color: var(--ink-fg); }
+  .acts .mini { display: inline-block; width: 18px; height: 18px; margin-right: 6px; vertical-align: -4px;
+                background: url(tex/ball-white.png) center / contain no-repeat; filter: drop-shadow(0 1px 1px rgba(0,0,0,.15)); }
+  .acts button[aria-pressed="true"] { background: var(--field); }
+  .acts button[disabled] { opacity: .6; cursor: progress; }
+  button:focus-visible, a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  @media (min-width: 860px) {
+    body { display: grid; grid-template-columns: 1fr 380px; grid-template-rows: auto 1fr; }
+    header { grid-column: 1 / -1; }
+    #stage { min-height: 0; }
+    .panel { align-content: start; padding-top: 24px; border-left: 1px solid var(--line); overflow-y: auto; }
+  }
+  @media (prefers-reduced-motion: reduce) { #stepText { transition: none; } }
 </style>
 
-<header class="wrap">
+<header class="gut">
+  <span class="logo" aria-label="ОГО">ОГО</span>
   <h1>Кровать с мягким изголовьем</h1>
-  <p>ОГО · Минск</p>
 </header>
 
-<div id="stage"><div id="loading">Загружаю кровать…</div></div>
-
-<div class="wrap bar">
-  <div class="row" id="views">
-    <button type="button" data-view="q" aria-pressed="true">Как на фото</button>
-    <button type="button" data-view="front" aria-pressed="false">С ног</button>
-    <button type="button" data-view="side" aria-pressed="false">Сбоку</button>
-    <button type="button" data-view="back" aria-pressed="false">Сзади</button>
-    <button type="button" data-view="top" aria-pressed="false">Сверху</button>
-    <button type="button" id="roomBtn">В интерьер</button>
-    <button type="button" id="roomOff" hidden>Убрать фото</button>
-    <input type="file" id="roomFile" accept="image/*" hidden>
-    <a id="ar" class="btn" rel="ar" href="#" hidden><img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'%3E%3Cpath d='M12 2l9 5v10l-9 5-9-5V7z'/%3E%3Cpath d='M3 7l9 5 9-5M12 12v10'/%3E%3C/svg%3E">В комнату</a>
+<div id="stage">
+  <div id="loading">Загружаю кровать…</div>
+  <div class="over top">
+    <p id="stepText">Крутить — одним пальцем, приближать — двумя.</p>
+    <a id="ar" class="pill" rel="ar" href="#" hidden><img alt="" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232c2c2c' stroke-width='2'%3E%3Cpath d='M12 2l9 5v10l-9 5-9-5V7z'/%3E%3Cpath d='M3 7l9 5 9-5M12 12v10'/%3E%3C/svg%3E">В комнату</a>
   </div>
-  <div class="row" id="steps"><span class="lab">Сборка</span></div>
-  <p id="stepText">Крутить — одним пальцем, приближать — двумя.</p>
+  <div class="over bot" id="views">
+    <button type="button" class="pill" data-view="q" aria-pressed="true">Общий</button>
+    <button type="button" class="pill" data-view="front" aria-pressed="false">С ног</button>
+    <button type="button" class="pill" data-view="side" aria-pressed="false">Сбоку</button>
+    <button type="button" class="pill" data-view="back" aria-pressed="false">Сзади</button>
+    <button type="button" class="pill" data-view="top" aria-pressed="false">Сверху</button>
+  </div>
+  <div class="over bot" id="steps"></div>
+  <div id="toast" hidden></div>
 </div>
 
-<section class="wrap config" aria-label="Выбор">
-  <div class="opt"><span class="lab">Матрас</span><div class="row" id="size"></div></div>
-  <div class="opt"><span class="lab">Дуб · масло Rubio Monocoat</span><div class="sw" id="wood"></div></div>
-  <div class="opt"><span class="lab">Ткань изголовья</span><div class="sw" id="fabric"></div></div>
-  <div class="price"><b id="price">—</b><span>цена с сайта o-go.by</span></div>
-  <div class="dl">
-    <button type="button" id="dl">Скачать 3D-модель</button>
-    <span id="dlNote">для дизайнеров и архитекторов: выбранный размер, масло и ткань — .fbx, .obj, .glb с текстурами</span>
+<section class="panel gut" aria-label="Выбор">
+  <div class="pick">
+    <div class="grp"><span class="lab">Ткань</span><div class="sw" id="fabric"></div></div>
+    <div class="mid">
+      <span class="lab">Матрас, см</span>
+      <div class="seg" id="size" role="group" aria-label="Матрас"></div>
+      <b id="price">—</b>
+    </div>
+    <div class="grp r"><span class="lab">Масло</span><div class="sw" id="wood"></div></div>
+  </div>
+  <div id="chosen"></div>
+  <div class="acts">
+    <button type="button" id="resetBtn"><span class="mini" aria-hidden="true"></span>Белая</button>
+    <button type="button" id="asmBtn" aria-pressed="false">Сборка</button>
+    <button type="button" id="dl" class="main">Скачать 3D</button>
   </div>
 </section>
-<footer class="wrap"></footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script type="importmap">
@@ -124,16 +150,18 @@ import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 // масла и ткани — отметки Лиды 25 окт (самые популярные); размеры — 160 и 180, только классическая
 const WOODS = [
   { id: 'oak', name: 'Oak' },
-  { id: 'smoke5', name: 'Smoke 5 %' },
+  { id: 'smoke5', name: 'Smoke 5\u00a0%' },
   { id: 'chocolate', name: 'Chocolate' },
 ];
 const FABRICS = [   // цвет — с образца тканей, свет фото выровнен по белому фону
   { id: 'light', name: 'Светлая серо-бежевая', hex: '#DCCCBB' },
   { id: 'taupe', name: 'Серо-коричневая', hex: '#7A6E68' },
+  { id: 'birds', name: 'С птицами', tex: true },        // её фото 08 — для пробы (её просьба 25 окт)
 ];
 const SIZES = { h: [160, 180] };
 const PRICES = { h: { 160: 4500, 180: 4800 } };
-const state = { head: 'h', size: 180, wood: 'oak', fabric: 'light' };
+// масло и ткань не выбраны — кровать белая; выбрали — окрашивается (её просьба 25 окт)
+const state = { head: 'h', size: 180, wood: null, fabric: null };
 
 // ── сцена
 const stage = document.getElementById('stage');
@@ -164,7 +192,7 @@ sun.shadow.bias = -0.0004;
 sun.shadow.normalBias = 0.01;
 scene.add(sun);
 scene.add(sun.target);
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.2 }));
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.ShadowMaterial({ opacity: 0.1 }));
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
@@ -217,6 +245,21 @@ function grainMaterial(hex, k, rough) {
   };
   return m;
 }
+// «белая, пока не выбрали»: у материала uWhite — 1 белый, 0 свой цвет; переход — «окрашивание»
+const WHITE_LIN = 0.9;
+function paintable(m, key) {
+  m.userData.white = { value: 1 };
+  const prev = m.onBeforeCompile;
+  m.onBeforeCompile = (sh, r) => {
+    if (prev) prev(sh, r);
+    sh.uniforms.uWhite = m.userData.white;
+    sh.fragmentShader = 'uniform float uWhite;\n' + sh.fragmentShader.replace('#include <color_fragment>',
+      `#include <color_fragment>
+      diffuseColor.rgb = mix( diffuseColor.rgb, vec3( ${WHITE_LIN.toFixed(2)} ), uWhite );`);
+  };
+  m.customProgramCacheKey = () => 'paint-' + key;      // у каждого материала своя программа: общая путала «белизну»
+  return m;
+}
 const MAT = {
   // масло Rubio — матовое, блика почти нет. Рельефа пор нет: при приближении от него «дрожало» (25 окт).
   // Цвет > 1 — поправка на свет сцены: вблизи дерево того же тона, что на её фото ножки (25 окт)
@@ -230,6 +273,20 @@ const MAT = {
   nut: new THREE.MeshStandardMaterial({ color: '#9A9A96', metalness: 1, roughness: 0.35, emissive: '#000000' }),
   dark: new THREE.MeshStandardMaterial({ color: '#1A1410', roughness: 0.9 }),
 };
+['wood', 'light', 'fabric', 'felt', 'plyA', 'plyB', 'dark'].forEach(k => paintable(MAT[k], k));
+const WOOD_MATS = [MAT.wood, MAT.light, MAT.felt, MAT.plyA, MAT.plyB, MAT.dark];   // окрашиваются с маслом
+const painted = { wood: false, fabric: false };
+function paint(mats, to = 0) {                          // белое ↔ свой цвет за 0,7 с (to: 0 — цвет, 1 — белое)
+  const t0 = performance.now(), from = mats.map(m => m.userData.white.value);
+  const dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 700;
+  const tick = now => {
+    const u = Math.min(1, (now - t0) / dur), e = u * u * (3 - 2 * u);
+    mats.forEach((m, i) => { m.userData.white.value = from[i] + (to - from[i]) * e; });
+    renderer.render(scene, camera);
+    if (u < 1) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
 function materialFor(mesh) {
   const n = mesh.name, m = mesh.material.name;
   if (m === 'Дерево') return MAT.wood;
@@ -242,17 +299,28 @@ function materialFor(mesh) {
   return mesh.material;
 }
 function applyWood() {
+  if (!state.wood) return;
   const rec = woodTex(state.wood);
-  if (!rec.best || MAT.wood.map === rec.best) return;
-  const fresh = !MAT.wood.map;
-  MAT.wood.map = rec.best;
-  if (fresh) MAT.wood.needsUpdate = true;
+  if (!rec.best) return;                                 // картинка ещё грузится — покрасим, когда придёт
+  if (MAT.wood.map !== rec.best) {
+    const fresh = !MAT.wood.map;
+    MAT.wood.map = rec.best;
+    if (fresh) MAT.wood.needsUpdate = true;
+  }
+  if (!painted.wood) { painted.wood = true; paint(WOOD_MATS); }
   requestRender();
   if (typeof scheduleAR === 'function') scheduleAR();
 }
+function birdsTex() {                                 // повтор рисунка 626 × 509 мм, у ткани модели — 400 × 400
+  if (!T.birds) { T.birds = tex('tex/birds.webp'); T.birds.repeat.set(400 / 626, 400 / 509); }
+  return T.birds;
+}
 function applyFabric() {
+  if (!state.fabric) return;
   const f = FABRICS.find(x => x.id === state.fabric);
-  MAT.fabric.color.set(f.hex);
+  if (f.tex) { MAT.fabric.map = birdsTex(); MAT.fabric.color.setScalar(1); }
+  else { MAT.fabric.map = T.fabric; MAT.fabric.color.set(f.hex); }
+  if (!painted.fabric) { painted.fabric = true; paint([MAT.fabric]); }
   requestRender();
   if (typeof scheduleAR === 'function') scheduleAR();
 }
@@ -289,7 +357,7 @@ function loadBed() {
     loading.hidden = true;
     stepAll();
     scheduleAR();
-    if (!camSet) { view('q'); camSet = true; }
+    if (!camSet) { view('q'); camSet = true; say('Крутить — одним пальцем, приближать — двумя.', 9000); }
     requestRender();
   };
   if (cache.has(k)) return done(cache.get(k));
@@ -320,7 +388,7 @@ function view(kind) {
   const pos = new THREE.Vector3(...P[0]), tgt = new THREE.Vector3(...P[1]);
   const aspect = camera.aspect || 1;
   // на телефоне — дальше, чтобы влезла вся кровать (виды с ног, сбоку, сверху — не так далеко, как «как на фото»)
-  const s = aspect < 1 ? (kind === 'q' ? Math.min(2.5, 1.4 / aspect) : Math.min(1.5, 1.15 / aspect)) : (aspect < 1.3 ? 1.15 : 1);
+  const s = aspect < 1 ? (kind === 'q' ? Math.min(2.5, 1.4 / aspect) : Math.min(1.5, 1.15 / aspect)) : (aspect < 1.3 ? 1.15 : 1.15);
   camera.position.copy(pos.sub(tgt).multiplyScalar(s).add(tgt));
   controls.target.copy(tgt);
   controls.update();
@@ -365,16 +433,29 @@ function buildStepButtons() {
   const S = STEPS[state.head];
   S.forEach((s, i) => {
     const b = document.createElement('button');
-    b.type = 'button'; b.textContent = String(i + 1); b.setAttribute('aria-pressed', 'false');
+    b.type = 'button'; b.className = 'pill'; b.textContent = String(i + 1); b.setAttribute('aria-pressed', 'false');
     b.setAttribute('aria-label', `Шаг ${i + 1}`);
     b.addEventListener('click', () => step(i));
     stepsBox.append(b);
   });
-  const all = document.createElement('button');
-  all.type = 'button'; all.textContent = 'Целиком'; all.setAttribute('aria-pressed', 'true');
-  all.addEventListener('click', () => { stepAll(); scheduleAR(); stepText.textContent = 'Кровать целиком.'; });
-  stepsBox.append(all);
 }
+// подсказка поверх 3D: показать текст; hide — спрятать через несколько секунд
+let hintTimer = null;
+function say(text, hide = 0) {
+  clearTimeout(hintTimer);
+  stepText.textContent = text;
+  stepText.classList.remove('fade');
+  if (hide) hintTimer = setTimeout(() => stepText.classList.add('fade'), hide);
+}
+const asmBtn = document.getElementById('asmBtn');
+asmBtn.addEventListener('click', () => {
+  const on = !document.body.classList.contains('asm');
+  document.body.classList.toggle('asm', on);
+  asmBtn.setAttribute('aria-pressed', String(on));
+  asmBtn.textContent = on ? 'Готово' : 'Сборка';
+  if (on) step(0);
+  else { stepAll(); scheduleAR(); say('Кровать целиком.', 2500); }
+});
 function firstStep(o) {
   const S = STEPS[state.head];
   for (let i = 0; i < S.length; i++) if (S[i].re && S[i].re.test(o.name)) return i;
@@ -397,13 +478,13 @@ function startAt(o, k, S) {
   return offsetAt(o, k - 1, S) ?? new THREE.Vector3();
 }
 function setButtons(k) {
-  stepsBox.querySelectorAll('button').forEach((b, i, all) => b.setAttribute('aria-pressed', String(k < 0 ? i === all.length - 1 : i === k)));
+  stepsBox.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-pressed', String(i === k)));
 }
 function step(k) {
   const S = STEPS[state.head];
   curStep = k;
   setButtons(k);
-  stepText.textContent = `Шаг ${k + 1}. ${S[k].t}`;
+  say(`Шаг ${k + 1}. ${S[k].t}`);
   const tasks = [];
   parts.forEach(o => {
     const end = offsetAt(o, k, S);
@@ -455,13 +536,17 @@ function swatch(box, list, kindKey, chipFor, onPick) {
     const b = document.createElement('button');
     b.type = 'button';
     b.setAttribute('aria-pressed', String(state[kindKey] === it.id));
-    b.innerHTML = `<span class="chip" style="${chipFor(it)}"></span>${it.name}`;
+    b.setAttribute('aria-label', it.name);
+    b.title = it.name;
+    b.style.cssText = chipFor(it);
     b.addEventListener('click', () => { state[kindKey] = it.id; box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onPick(); update(); });
     box.append(b);
   });
 }
-swatch(document.getElementById('wood'), WOODS, 'wood', w => `background:url(tex/chip-${w.id}.jpg) center/cover`, applyWood);
-swatch(document.getElementById('fabric'), FABRICS, 'fabric', f => `background:${f.hex}`, applyFabric);
+// «яблочки» — шарики, отрисованные в Blender тем же светом (шарики.py)
+swatch(document.getElementById('wood'), WOODS, 'wood', w => `background-image:url(tex/ball-${w.id}.png)`, applyWood);
+// ткань — та же картинка с фото, что на кровати, умноженная на цвет образца
+swatch(document.getElementById('fabric'), FABRICS, 'fabric', f => `background-image:url(tex/ball-${f.id}.png)`, applyFabric);
 
 function buildSizes() {
   const box = document.getElementById('size');
@@ -469,9 +554,13 @@ function buildSizes() {
   SIZES[state.head].forEach(s => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.textContent = `${s} × 200`;
+    b.textContent = String(s);
+    b.setAttribute('aria-label', `${s} × 200`);
     b.setAttribute('aria-pressed', String(state.size === s));
-    b.addEventListener('click', () => { state.size = s; buildSizes(); loadBed(); update(); });
+    b.addEventListener('click', () => {
+      if (document.body.classList.contains('asm')) document.getElementById('asmBtn').click();   // сборка — заново, с целой кровати
+      state.size = s; buildSizes(); loadBed(); update();
+    });
     box.append(b);
   });
 }
@@ -479,6 +568,9 @@ function buildSizes() {
 const fmt = n => n.toLocaleString('ru-RU');
 function update() {
   document.getElementById('price').textContent = `${fmt(PRICES[state.head][state.size])} BYN`;
+  const w = WOODS.find(x => x.id === state.wood), f = FABRICS.find(x => x.id === state.fabric);
+  document.getElementById('chosen').textContent = !w && !f ? 'Выберите ткань и масло — кровать окрасится'
+    : `${f ? 'Ткань ' + f.name.toLowerCase() : 'Выберите ткань'} · ${w ? 'масло Rubio ' + w.name : 'выберите масло'}`;
   scheduleAR();
 }
 
@@ -488,6 +580,7 @@ const arLink = document.getElementById('ar');
 let arURL = null, arTimer = null, arBusy = false;
 function scheduleAR() {
   if (!arOK) return;
+  if (!state.wood || !state.fabric) { arLink.hidden = true; return; }   // «в комнату» — уже окрашенную
   clearTimeout(arTimer);
   arLink.hidden = true;
   arTimer = setTimeout(makeAR, 1500);
@@ -518,8 +611,14 @@ async function withPlainWood(fn) {
 }
 
 // ── скачать 3D-модель под выбор: .fbx и .obj (собраны в Blender) + картинки + .glb из этой сцены
-const dlBtn = document.getElementById('dl'), dlNote = document.getElementById('dlNote');
-const DL_NOTE = dlNote.textContent;
+const dlBtn = document.getElementById('dl'), toastEl = document.getElementById('toast');
+let toastTimer = null;
+function toast(text, hide = 4500) {
+  clearTimeout(toastTimer);
+  toastEl.textContent = text;
+  toastEl.hidden = !text;
+  if (text && hide) toastTimer = setTimeout(() => { toastEl.hidden = true; }, hide);
+}
 const LATIN = { oak: 'Oak', smoke5: 'Smoke5', chocolate: 'Chocolate', light: 'svetlaya', taupe: 'sero-korichnevaya' };
 function srgbToLin(c) { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }
 function linToSrgb(c) { return 255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055); }
@@ -561,7 +660,7 @@ async function saveFile(blob, filename) {
   const dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null;
   if (dl) {
     try { await dl.save({ filename, data: blob }); return 'Готово: архив сохранён.'; }
-    catch (e) { return e && e.code === 'declined' ? DL_NOTE : 'Скачивание здесь недоступно — откройте страницу на сайте ОГО.'; }
+    catch (e) { return e && e.code === 'declined' ? '' : 'Скачивание здесь недоступно — откройте страницу на сайте ОГО.'; }
   }
   if (window.claude) return 'Скачивание здесь недоступно — откройте страницу на сайте ОГО.';
   const a = document.createElement('a');           // обычный сайт: обычная ссылка
@@ -583,7 +682,7 @@ async function makeZip() {
   dir.file('bed.obj', j.obj, { base64: true });
   dir.file('bed.mtl', j.mtl);
   dir.file('wood.jpg', await blobOf(`tex/wood-${w.id}.jpg`));
-  dir.file('fabric.jpg', await fabricJpeg(f.hex));
+  dir.file('fabric.jpg', f.tex ? await blobOf('tex/birds.jpg') : await fabricJpeg(f.hex));
   dir.file('plywood.jpg', await blobOf('download/plywood.jpg'));
   dir.file('bars.jpg', await blobOf('download/bars.jpg'));
   dir.file('bed.glb', await glb());
@@ -592,45 +691,28 @@ async function makeZip() {
 }
 dlBtn.addEventListener('click', async () => {
   if (!bed || typeof JSZip === 'undefined') return;
+  if (!state.wood || !state.fabric) return toast('Сначала выберите ткань и масло — модель скачается в этих цветах.');
   dlBtn.disabled = true;
-  dlNote.textContent = 'Собираю архив…';
+  toast('Собираю 3D-модель: выбранный размер, масло и ткань — .fbx, .obj, .glb с текстурами…', 0);
   try {
     const { name, blob } = await makeZip();
-    dlNote.textContent = await saveFile(blob, name);
+    toast(await saveFile(blob, name));
   } catch (e) {
-    dlNote.textContent = 'Архив не собрался. Обновите страницу и попробуйте ещё раз.';
+    toast('Архив не собрался. Обновите страницу и попробуйте ещё раз.');
   }
   dlBtn.disabled = false;
 });
 if (location.hash === '#dbg') window.dbg.makeZip = makeZip;
 
 // ── «В интерьер»: фото своей комнаты — фоном, кровать поверх; повернуть, подвинуть, приблизить
-const roomBtn = document.getElementById('roomBtn'), roomOff = document.getElementById('roomOff');
-const roomFile = document.getElementById('roomFile');
-const HINT = 'Крутить — одним пальцем, приближать — двумя.';
-let roomURL = null;
-roomBtn.addEventListener('click', () => roomFile.click());
-roomFile.addEventListener('change', () => {
-  const f = roomFile.files && roomFile.files[0];
-  if (!f) return;
-  if (roomURL) URL.revokeObjectURL(roomURL);
-  roomURL = URL.createObjectURL(f);
-  stage.style.backgroundImage = `url(${roomURL})`;
-  stage.classList.add('room');
-  roomOff.hidden = false;
-  roomBtn.textContent = 'Другое фото';
-  stepText.textContent = 'Одним пальцем — повернуть кровать, двумя — подвинуть и приблизить, чтобы встала на пол.';
-  roomFile.value = '';
+document.getElementById('resetBtn').addEventListener('click', () => {   // снова белая
+  state.wood = state.fabric = null;
+  painted.wood = painted.fabric = false;
+  paint([...WOOD_MATS, MAT.fabric], 1);
+  document.querySelectorAll('.sw button').forEach(b => b.setAttribute('aria-pressed', 'false'));
+  update();
 });
-roomOff.addEventListener('click', () => {
-  stage.style.backgroundImage = '';
-  stage.classList.remove('room');
-  if (roomURL) URL.revokeObjectURL(roomURL);
-  roomURL = null;
-  roomOff.hidden = true;
-  roomBtn.textContent = 'В интерьер';
-  stepText.textContent = HINT;
-});
+controls.addEventListener('start', () => { if (curStep === -1) stepText.classList.add('fade'); });
 
 // ── старт
 let DIMS = null;
@@ -642,5 +724,5 @@ applyFabric();
 update();
 resize();
 loadBed();
-setTimeout(() => WOODS.forEach(w => woodTex(w.id)), 2500);   // маленькие картинки других масел — заранее
+setTimeout(() => { WOODS.forEach(w => woodTex(w.id)); birdsTex(); }, 2500);   // заранее — смена будет мгновенной
 </script>
