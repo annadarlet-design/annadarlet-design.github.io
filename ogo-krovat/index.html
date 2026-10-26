@@ -79,12 +79,10 @@
   #chosen { font-size: 12px; color: var(--muted); min-height: 1.4em; text-align: center; transition: opacity .4s; }
   #chosen.hint { color: var(--fg); }
   #chosen.fade { opacity: 0; }
-  .acts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .acts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
   .acts button { font: inherit; font-size: 13px; font-weight: 600; height: 44px; border-radius: 5px; border: 1px solid var(--ink);
                  background: var(--bg); color: var(--fg); cursor: pointer; padding: 0 6px; }
   .acts button.main { background: var(--ink); color: var(--ink-fg); }
-  .acts .mini { display: inline-block; width: 14px; height: 14px; margin-right: 7px; vertical-align: -2px; border-radius: 50%;
-                background: #fff; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); }
   .acts button[aria-pressed="true"] { background: var(--field); }
   .acts button[disabled] { opacity: .6; cursor: progress; }
   /* «Скачать 3D ▾» — список форматов, как их выбор размера на сайте (Лида, 25 окт); сам список — родной, телефонный */
@@ -136,7 +134,6 @@
   </div>
   <div id="chosen" class="hint">Выберите цвет дерева и ткани</div>
   <div class="acts">
-    <button type="button" id="resetBtn"><span class="mini" aria-hidden="true"></span>Без цвета</button>
     <button type="button" id="asmBtn" aria-pressed="false">Сборка</button>
     <label class="dlwrap" id="dlwrap">Скачать 3D&nbsp;▾
       <select id="dl" aria-label="Скачать 3D-модель">
@@ -183,12 +180,9 @@ const FABRICS = [   // цвет — с образца тканей, свет ф�
   { id: 'taupe', name: 'Серо-коричневая', hex: '#7A6E68' },
 ];
 const SIZES = { h: [140, 160, 180, 200] };   // 140 и 200 — её просьба 25 окт, вечер; цены на странице нет
-// масло и ткань не выбраны — кровать белая; выбрали — окрашивается (её просьба 25 окт)
-const state = { head: 'h', size: 180, wood: null, fabric: null };
-// начало: кровать появляется в цвете — тёмное дерево Chocolate и серо-коричневая ткань, полторы секунды стоит,
-// потом за 3,5 с уходит в белую (Лида 26 окт: «показалась эта кровать… потихонечку выходит в бесцветность»).
-// Выбрали цвет раньше — начало прерывается, выбор главнее.
-const INTRO = { wood: 'chocolate', fabric: 'taupe', hold: 1500, fade: 3500, on: true, shown: false, timer: 0 };
+// кровать сразу в цвете — тёмное дерево Chocolate и серо-коричневая ткань, точки отмечены; белой кровати нет нигде,
+// ни на странице, ни в файлах (Лида 26 окт: «не надо чисто белую кровать… сразу так вот подгружается»)
+const state = { head: 'h', size: 180, wood: 'chocolate', fabric: 'taupe' };
 
 // ── сцена
 const stage = document.getElementById('stage');
@@ -336,7 +330,6 @@ function woodTex(id) {
       if (kind === 'full' || !rec.best) rec.best = x;          // полная важнее маленькой
       rec[kind] = true;
       if (state.wood === id) applyWood();
-      else if (INTRO.on && id === INTRO.wood) introShow();
     });
     x.colorSpace = THREE.SRGBColorSpace;
     x.wrapS = x.wrapT = THREE.RepeatWrapping;
@@ -362,11 +355,10 @@ function grainMaterial(hex, k, rough) {
   };
   return m;
 }
-// «белая, пока не выбрали»: у материала uWhite — 1 белый, 0 свой цвет; переход — «окрашивание»
-// белая кровать — светло-серая, чтобы её было видно на белом (Лида, 25 окт, ночь: «серее, чтобы было видно лучше…
-// сейчас бледно, но нежно — не потерять»; было 1,0 — её «побелее», а до того 0,9); фанера — светлее рамки, как простыня
-const WHITE_LIN = 0.8, WHITE_PLY = 0.97;
-function paintable(m, key, white = WHITE_LIN) {
+// фанера всегда белёсая — светлее рамки, как простыня (её просьба 25 окт): uWhite — доля белого (уровень WHITE_PLY).
+// Белой кровати больше нет (Лида 26 окт); дерево и ткань — всегда своего цвета
+const WHITE_PLY = 0.97;
+function paintable(m, key, white) {
   m.userData.white = { value: 1 };
   m.userData.whiteLevel = { value: white };
   const prev = m.onBeforeCompile;
@@ -423,25 +415,7 @@ MAT.plyEdge.onBeforeCompile = sh => {
     `#include <color_fragment>
     diffuseColor.rgb *= mix( vec3( 0.42, 0.33, 0.26 ), vec3( 1.0 ), smoothstep( 0.336, 0.3495, vWy ) );`);
 };
-['wood', 'light', 'fabric', 'dark'].forEach(k => paintable(MAT[k], k));
 ['plyA', 'plyB'].forEach(k => paintable(MAT[k], k, WHITE_PLY));
-const WOOD_MATS = [MAT.wood, MAT.light, MAT.dark];   // окрашиваются с маслом; фанера — нет, остаётся белой (её просьба 25 окт)
-const painted = { wood: false, fabric: false };
-let paintSeq = 0;
-function paint(mats, to = 0, dur = 700) {               // белое ↔ свой цвет за dur мс (to: 0 — цвет, 1 — белое);
-  const id = ++paintSeq, t0 = performance.now(), from = mats.map(m => m.userData.white.value);   // новый paint тех же
-  mats.forEach(m => { m.userData.paintId = id; });       // материалов отменяет прежний (выбрали цвет посреди начала)
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) dur = 1;
-  const tick = now => {
-    const u = Math.min(1, (now - t0) / dur), e = u * u * (3 - 2 * u);
-    let live = false;
-    mats.forEach((m, i) => { if (m.userData.paintId !== id) return; live = true; m.userData.white.value = from[i] + (to - from[i]) * e; });
-    if (!live) return;
-    draw();
-    if (u < 1) requestAnimationFrame(tick);
-  };
-  requestAnimationFrame(tick);
-}
 function materialFor(mesh) {
   const n = mesh.name, m = mesh.material.name;
   if (m === 'Дерево') return MAT.wood;
@@ -468,40 +442,17 @@ function woodLook(id) {                                  // дерево под 
   return true;
 }
 function applyWood() {
-  if (!state.wood) return;
   if (!woodLook(state.wood)) return;                     // картинка ещё грузится — покрасим, когда придёт
-  if (!painted.wood) { painted.wood = true; paint(WOOD_MATS); }
+  if (bed && !bed.visible) { bed.visible = true; loading.hidden = true; }   // кровать ждала картинку дерева
   requestRender();
   if (typeof scheduleAR === 'function') scheduleAR();
 }
 function applyFabric() {
-  if (!state.fabric) return;
   const f = FABRICS.find(x => x.id === state.fabric);
   MAT.fabric.map = T.fabric;
   MAT.fabric.color.set(f.hex);
-  if (!painted.fabric) { painted.fabric = true; paint([MAT.fabric]); }
   requestRender();
   if (typeof scheduleAR === 'function') scheduleAR();
-}
-function introShow() {                                    // начало: кровать сразу в цвете, через INTRO.hold — в белую
-  if (!INTRO.on || INTRO.shown || !bed) return;
-  if (!woodLook(INTRO.wood)) { bed.visible = false; loading.hidden = false; return; }   // ждём картинку дерева
-  INTRO.shown = true;
-  MAT.fabric.map = T.fabric;
-  MAT.fabric.color.set(FABRICS.find(x => x.id === INTRO.fabric).hex);
-  [...WOOD_MATS, MAT.fabric].forEach(m => { m.userData.white.value = 0; });
-  bed.visible = true;
-  loading.hidden = true;
-  requestRender();
-  INTRO.timer = setTimeout(() => { INTRO.on = false; paint([...WOOD_MATS, MAT.fabric], 1, INTRO.fade); }, INTRO.hold);
-}
-function introStop() {                                    // выбрали цвет сами — что не выбрано, уходит в белое
-  if (!INTRO.on) return;
-  INTRO.on = false;
-  clearTimeout(INTRO.timer);
-  if (!INTRO.shown) { if (bed) { bed.visible = true; loading.hidden = true; } return; }
-  if (!state.wood) paint(WOOD_MATS, 1);
-  if (!state.fabric) paint([MAT.fabric], 1);
 }
 
 // ── модели
@@ -517,7 +468,6 @@ function loadBed() {
     if (k !== key()) return;
     if (bed) scene.remove(bed);
     bed = g;
-    bed.visible = true;
     scene.add(bed);
     parts = [];
     bed.traverse(o => {
@@ -534,10 +484,11 @@ function loadBed() {
       o.position.copy(o.userData.home);
       parts.push(o);
     });
-    loading.hidden = true;
     stepAll();
     scheduleAR();
-    introShow();
+    const ready = woodLook(state.wood);                  // сразу в цвете: без картинки дерева кровать не показываем
+    bed.visible = ready;
+    loading.hidden = ready;
     if (!camSet) { view('q'); camSet = true; say('Крутить — одним пальцем, приближать — двумя.', 9000); }
     requestRender();
   };
@@ -760,7 +711,7 @@ function swatch(box, list, kindKey, chipFor, onPick) {
     const dot = document.createElement('i');
     dot.style.cssText = chipFor(it);
     b.append(dot);
-    b.addEventListener('click', () => { dropHint(); state[kindKey] = it.id; box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); introStop(); onPick(); update(); });
+    b.addEventListener('click', () => { dropHint(); state[kindKey] = it.id; box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onPick(); update(); });
     box.append(b);
   });
 }
@@ -842,8 +793,8 @@ async function withPlainWood(fn) {
 
 // ── скачать 3D-модель — списком форматов (её и Лиды решение 25 окт, ночь: «не архив… скачать в таком-то
 // формате отдельно… и последняя — всё в ZIP»; «один файлик FBX, в котором всё сидит»). FBX и GLB — один файл,
-// картинки внутри; OBJ — только архивом (картинки у OBJ всегда рядом). Масло не выбрано — дерево, бруски и фанера
-// белые; ткань не выбрана — ткань белая («дать на сохранение белую кровать»).
+// картинки внутри; OBJ — только архивом (картинки у OBJ всегда рядом). Белой кровати в файлах нет — всегда
+// выбранные цвета (Лида 26 окт: «никогда чисто белая кровать у нас не выгружается»).
 const dlSel = document.getElementById('dl'), dlWrap = document.getElementById('dlwrap'), toastEl = document.getElementById('toast');
 let toastTimer = null;
 function toast(text, hide = 4500) {
@@ -869,23 +820,14 @@ async function fabricJpeg(hex) {             // серая ткань × цве�
   g.putImageData(px, 0, 0);
   return new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9));
 }
-function whiteJpeg() {
-  const cv = document.createElement('canvas');
-  cv.width = cv.height = 8;
-  const g = cv.getContext('2d');
-  g.fillStyle = '#ffffff';
-  g.fillRect(0, 0, 8, 8);
-  return new Promise(r => cv.toBlob(r, 'image/jpeg', 0.9));
-}
 const blobOf = url => fetch(url).then(r => r.blob());
 async function textures() {                  // картинки под выбор (имена — как в .fbx и .mtl)
   const w = WOODS.find(x => x.id === state.wood), f = FABRICS.find(x => x.id === state.fabric);
-  const white = (!w || !f) ? await whiteJpeg() : null;
   return {
-    'wood.jpg': w ? await blobOf(`tex/wood-${w.id}.jpg`) : white,
-    'plywood.jpg': w ? await blobOf('download/plywood.jpg') : white,
-    'bars.jpg': w ? await blobOf('download/bars.jpg') : white,
-    'fabric.jpg': f ? await fabricJpeg(f.hex) : white,
+    'wood.jpg': await blobOf(`tex/wood-${w.id}.jpg`),
+    'plywood.jpg': await blobOf('download/plywood.jpg'),
+    'bars.jpg': await blobOf('download/bars.jpg'),
+    'fabric.jpg': await fabricJpeg(f.hex),
   };
 }
 
@@ -953,18 +895,11 @@ async function fbxFile(j, tex) {
   for (const [k, b] of Object.entries(tex)) imgs[k] = new Uint8Array(await b.arrayBuffer());
   return new Blob(fbxSwap(b64bytes(j.fbx), imgs), { type: 'application/octet-stream' });
 }
-// GLB — из этой сцены; что не выбрано — белым
+// GLB — из этой сцены, в выбранных цветах
 async function glb() {
   [T.fabric, T.ply, T.light, MAT.wood.map].forEach(t => { if (t) t.userData.mimeType = 'image/jpeg'; });
-  const whites = new Map();                      // белый — у каждого материала свой, с его именем: в файле не сливаются в один
-  const white = m => whites.get(m) || whites.set(m, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.8, name: m.name })).get(m);
-  const whiten = new Set([...(state.wood ? [] : [MAT.wood, MAT.light, MAT.plyA, MAT.plyB, MAT.dark]), ...(state.fabric ? [] : [MAT.fabric])]);
-  const keep = [];
-  bed.traverse(o => { if (o.isMesh && whiten.has(o.material)) { keep.push([o, o.material]); o.material = white(o.material); } });
-  try {
-    return await withPlainWood(() => new Promise((ok, bad) =>
-      new GLTFExporter().parse(bed, ok, bad, { binary: true, maxTextureSize: 4096 })));
-  } finally { keep.forEach(([o, m]) => { o.material = m; }); }
+  return withPlainWood(() => new Promise((ok, bad) =>
+    new GLTFExporter().parse(bed, ok, bad, { binary: true, maxTextureSize: 4096 })));
 }
 function readme(d, wood, fab) {
   return [
@@ -999,7 +934,7 @@ async function saveFile(blob, filename) {
 async function makeFile(kind) {                     // kind: fbx | glb | obj | zip
   if (curStep !== -1) stepAll();                    // в файл — кровать целиком, на своих местах
   const w = WOODS.find(x => x.id === state.wood), f = FABRICS.find(x => x.id === state.fabric);
-  const name = `OGO-krovat-${state.size}-` + (!w && !f ? 'belaya' : `${w ? LATIN[w.id] : 'belyj-dub'}-${f ? LATIN[f.id] : 'belaya-tkan'}`);
+  const name = `OGO-krovat-${state.size}-${LATIN[w.id]}-${LATIN[f.id]}`;
   if (kind === 'glb') return { name: name + '.glb', blob: new Blob([await glb()], { type: 'model/gltf-binary' }) };
   const j = await fetch(`download/h${state.size}.json`).then(r => r.json());
   const tex = await textures();
@@ -1012,7 +947,7 @@ async function makeFile(kind) {                     // kind: fbx | glb | obj | z
     dir.file('bed.fbx', await fbxFile(j, tex));
     dir.file('bed.glb', await glb());
   }
-  dir.file('README.txt', readme(dims(), w ? 'масло Rubio Monocoat ' + w.name : 'белый (без масла)', f ? f.name.toLowerCase() : 'белая'));
+  dir.file('README.txt', readme(dims(), 'масло Rubio Monocoat ' + w.name, f.name.toLowerCase()));
   return { name: name + '.zip', blob: await zip.generateAsync({ type: 'blob' }) };
 }
 const KIND_TEXT = { fbx: 'FBX', glb: 'GLB', obj: 'OBJ', zip: 'все форматы' };   // без «один файл» — дизайнеры знают сами (её слова)
@@ -1022,7 +957,7 @@ dlSel.addEventListener('change', async () => {
   if (!kind || !bed || typeof JSZip === 'undefined') return;
   dlSel.disabled = true;
   dlWrap.classList.add('busy');
-  toast(`Собираю ${KIND_TEXT[kind]}: размер ${state.size}, ` + (state.wood || state.fabric ? 'выбранные масло и ткань…' : 'белая кровать…'), 0);
+  toast(`Собираю ${KIND_TEXT[kind]}: размер ${state.size}, выбранный цвет дерева и ткани…`, 0);
   try {
     const { name, blob } = await makeFile(kind);
     toast(await saveFile(blob, name));
@@ -1034,15 +969,7 @@ dlSel.addEventListener('change', async () => {
 });
 if (location.hash === '#dbg') Object.assign(window.dbg, { makeFile, fbxSwap, textures });
 
-// ── «В интерьер»: фото своей комнаты — фоном, кровать поверх; повернуть, подвинуть, приблизить
-document.getElementById('resetBtn').addEventListener('click', () => {   // снова белая
-  state.wood = state.fabric = null;
-  introStop();
-  painted.wood = painted.fabric = false;
-  paint([...WOOD_MATS, MAT.fabric], 1);
-  document.querySelectorAll('.sw button').forEach(b => b.setAttribute('aria-pressed', 'false'));
-  update();
-});
+// подсказка поверх 3D гаснет, как только начали крутить
 controls.addEventListener('start', () => { if (curStep === -1) stepText.classList.add('fade'); });
 
 // ── старт
@@ -1054,7 +981,6 @@ applyWood();
 applyFabric();
 update();
 resize();
-woodTex(INTRO.wood);                                       // начало — тёмное дерево: его картинку сразу
 loadBed();
 setTimeout(() => WOODS.forEach(w => woodTex(w.id)), 2500);   // заранее — смена будет мгновенной
 </script>
