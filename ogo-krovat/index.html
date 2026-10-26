@@ -125,15 +125,16 @@
 </div>
 
 <section class="panel gut" aria-label="Выбор">
+  <!-- подписи — Лида 26 окт: «цвет дерева (а не цвет масла)», «цвет ткани (а не просто ткань)» -->
   <div class="pick">
-    <div class="grp"><span class="lab">Масло</span><div class="sw" id="wood"></div></div>
-    <div class="grp r"><span class="lab">Ткань</span><div class="sw" id="fabric"></div></div>
+    <div class="grp"><span class="lab">Цвет дерева</span><div class="sw" id="wood"></div></div>
+    <div class="grp r"><span class="lab">Цвет ткани</span><div class="sw" id="fabric"></div></div>
   </div>
   <div class="mid">
     <span class="lab">Матрас, см</span>
     <div class="seg" id="size" role="group" aria-label="Матрас"></div>
   </div>
-  <div id="chosen" class="hint">Выберите цвет масла и ткани</div>
+  <div id="chosen" class="hint">Выберите цвет дерева и ткани</div>
   <div class="acts">
     <button type="button" id="resetBtn"><span class="mini" aria-hidden="true"></span>Без цвета</button>
     <button type="button" id="asmBtn" aria-pressed="false">Сборка</button>
@@ -184,6 +185,10 @@ const FABRICS = [   // цвет — с образца тканей, свет ф�
 const SIZES = { h: [140, 160, 180, 200] };   // 140 и 200 — её просьба 25 окт, вечер; цены на странице нет
 // масло и ткань не выбраны — кровать белая; выбрали — окрашивается (её просьба 25 окт)
 const state = { head: 'h', size: 180, wood: null, fabric: null };
+// начало: кровать появляется в цвете — тёмное дерево Chocolate и серо-коричневая ткань, полторы секунды стоит,
+// потом за 3,5 с уходит в белую (Лида 26 окт: «показалась эта кровать… потихонечку выходит в бесцветность»).
+// Выбрали цвет раньше — начало прерывается, выбор главнее.
+const INTRO = { wood: 'chocolate', fabric: 'taupe', hold: 1500, fade: 3500, on: true, shown: false, timer: 0 };
 
 // ── сцена
 const stage = document.getElementById('stage');
@@ -331,6 +336,7 @@ function woodTex(id) {
       if (kind === 'full' || !rec.best) rec.best = x;          // полная важнее маленькой
       rec[kind] = true;
       if (state.wood === id) applyWood();
+      else if (INTRO.on && id === INTRO.wood) introShow();
     });
     x.colorSpace = THREE.SRGBColorSpace;
     x.wrapS = x.wrapT = THREE.RepeatWrapping;
@@ -391,6 +397,9 @@ const MAT = {
   nut: new THREE.MeshStandardMaterial({ color: '#9A9A96', metalness: 1, roughness: 0.35, emissive: '#000000' }),
   dark: new THREE.MeshStandardMaterial({ color: '#1A1410', roughness: 0.9 }),
 };
+// имена — в скачанном GLB материалы отдельно и с именами, как в FBX и OBJ (дерево, ткань, фанера…; её вопрос 26 окт)
+Object.entries({ wood: 'derevo', light: 'brusok_svetlyy', fabric: 'tkan', plyA: 'fanera', plyB: 'fanera_2', plyEdge: 'fanera_torets',
+  metal: 'metall', nut: 'metall_gayki', dark: 'ten' }).forEach(([k, n]) => { MAT[k].name = n; });
 // мягкость дерева: рисунок волокна чуть притушить к среднему цвету масла (soft 0…1) — пробуем её «уютнее,
 // как на фото» (25 окт, ночь); средний цвет масла — как у точки
 MAT.wood.userData.soft = { value: 0.35 };                  // её «уютнее, как на фото Лиды» (25 окт, ночь)
@@ -418,12 +427,16 @@ MAT.plyEdge.onBeforeCompile = sh => {
 ['plyA', 'plyB'].forEach(k => paintable(MAT[k], k, WHITE_PLY));
 const WOOD_MATS = [MAT.wood, MAT.light, MAT.dark];   // окрашиваются с маслом; фанера — нет, остаётся белой (её просьба 25 окт)
 const painted = { wood: false, fabric: false };
-function paint(mats, to = 0) {                          // белое ↔ свой цвет за 0,7 с (to: 0 — цвет, 1 — белое)
-  const t0 = performance.now(), from = mats.map(m => m.userData.white.value);
-  const dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 1 : 700;
+let paintSeq = 0;
+function paint(mats, to = 0, dur = 700) {               // белое ↔ свой цвет за dur мс (to: 0 — цвет, 1 — белое);
+  const id = ++paintSeq, t0 = performance.now(), from = mats.map(m => m.userData.white.value);   // новый paint тех же
+  mats.forEach(m => { m.userData.paintId = id; });       // материалов отменяет прежний (выбрали цвет посреди начала)
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) dur = 1;
   const tick = now => {
     const u = Math.min(1, (now - t0) / dur), e = u * u * (3 - 2 * u);
-    mats.forEach((m, i) => { m.userData.white.value = from[i] + (to - from[i]) * e; });
+    let live = false;
+    mats.forEach((m, i) => { if (m.userData.paintId !== id) return; live = true; m.userData.white.value = from[i] + (to - from[i]) * e; });
+    if (!live) return;
     draw();
     if (u < 1) requestAnimationFrame(tick);
   };
@@ -440,19 +453,23 @@ function materialFor(mesh) {
   if (m === 'Тень') return MAT.dark;
   return mesh.material;
 }
-function applyWood() {
-  if (!state.wood) return;
-  const wd = WOODS.find(x => x.id === state.wood);
+function woodLook(id) {                                  // дерево под масло id; false — картинка ещё грузится
+  const wd = WOODS.find(x => x.id === id);
   MAT.wood.userData.avg.value.set(wd.dot);
   MAT.wood.color.setRGB(...wd.tint);
   MAT.wood.userData.sat.value = wd.sat;
-  const rec = woodTex(state.wood);
-  if (!rec.best) return;                                 // картинка ещё грузится — покрасим, когда придёт
+  const rec = woodTex(id);
+  if (!rec.best) return false;
   if (MAT.wood.map !== rec.best) {
     const fresh = !MAT.wood.map;
     MAT.wood.map = rec.best;
     if (fresh) MAT.wood.needsUpdate = true;
   }
+  return true;
+}
+function applyWood() {
+  if (!state.wood) return;
+  if (!woodLook(state.wood)) return;                     // картинка ещё грузится — покрасим, когда придёт
   if (!painted.wood) { painted.wood = true; paint(WOOD_MATS); }
   requestRender();
   if (typeof scheduleAR === 'function') scheduleAR();
@@ -465,6 +482,26 @@ function applyFabric() {
   if (!painted.fabric) { painted.fabric = true; paint([MAT.fabric]); }
   requestRender();
   if (typeof scheduleAR === 'function') scheduleAR();
+}
+function introShow() {                                    // начало: кровать сразу в цвете, через INTRO.hold — в белую
+  if (!INTRO.on || INTRO.shown || !bed) return;
+  if (!woodLook(INTRO.wood)) { bed.visible = false; loading.hidden = false; return; }   // ждём картинку дерева
+  INTRO.shown = true;
+  MAT.fabric.map = T.fabric;
+  MAT.fabric.color.set(FABRICS.find(x => x.id === INTRO.fabric).hex);
+  [...WOOD_MATS, MAT.fabric].forEach(m => { m.userData.white.value = 0; });
+  bed.visible = true;
+  loading.hidden = true;
+  requestRender();
+  INTRO.timer = setTimeout(() => { INTRO.on = false; paint([...WOOD_MATS, MAT.fabric], 1, INTRO.fade); }, INTRO.hold);
+}
+function introStop() {                                    // выбрали цвет сами — что не выбрано, уходит в белое
+  if (!INTRO.on) return;
+  INTRO.on = false;
+  clearTimeout(INTRO.timer);
+  if (!INTRO.shown) { if (bed) { bed.visible = true; loading.hidden = true; } return; }
+  if (!state.wood) paint(WOOD_MATS, 1);
+  if (!state.fabric) paint([MAT.fabric], 1);
 }
 
 // ── модели
@@ -480,6 +517,7 @@ function loadBed() {
     if (k !== key()) return;
     if (bed) scene.remove(bed);
     bed = g;
+    bed.visible = true;
     scene.add(bed);
     parts = [];
     bed.traverse(o => {
@@ -499,6 +537,7 @@ function loadBed() {
     loading.hidden = true;
     stepAll();
     scheduleAR();
+    introShow();
     if (!camSet) { view('q'); camSet = true; say('Крутить — одним пальцем, приближать — двумя.', 9000); }
     requestRender();
   };
@@ -721,7 +760,7 @@ function swatch(box, list, kindKey, chipFor, onPick) {
     const dot = document.createElement('i');
     dot.style.cssText = chipFor(it);
     b.append(dot);
-    b.addEventListener('click', () => { dropHint(); state[kindKey] = it.id; box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); onPick(); update(); });
+    b.addEventListener('click', () => { dropHint(); state[kindKey] = it.id; box.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); introStop(); onPick(); update(); });
     box.append(b);
   });
 }
@@ -917,10 +956,11 @@ async function fbxFile(j, tex) {
 // GLB — из этой сцены; что не выбрано — белым
 async function glb() {
   [T.fabric, T.ply, T.light, MAT.wood.map].forEach(t => { if (t) t.userData.mimeType = 'image/jpeg'; });
-  const white = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.8, name: 'white' });
+  const whites = new Map();                      // белый — у каждого материала свой, с его именем: в файле не сливаются в один
+  const white = m => whites.get(m) || whites.set(m, new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.8, name: m.name })).get(m);
   const whiten = new Set([...(state.wood ? [] : [MAT.wood, MAT.light, MAT.plyA, MAT.plyB, MAT.dark]), ...(state.fabric ? [] : [MAT.fabric])]);
   const keep = [];
-  bed.traverse(o => { if (o.isMesh && whiten.has(o.material)) { keep.push([o, o.material]); o.material = white; } });
+  bed.traverse(o => { if (o.isMesh && whiten.has(o.material)) { keep.push([o, o.material]); o.material = white(o.material); } });
   try {
     return await withPlainWood(() => new Promise((ok, bad) =>
       new GLTFExporter().parse(bed, ok, bad, { binary: true, maxTextureSize: 4096 })));
@@ -997,6 +1037,7 @@ if (location.hash === '#dbg') Object.assign(window.dbg, { makeFile, fbxSwap, tex
 // ── «В интерьер»: фото своей комнаты — фоном, кровать поверх; повернуть, подвинуть, приблизить
 document.getElementById('resetBtn').addEventListener('click', () => {   // снова белая
   state.wood = state.fabric = null;
+  introStop();
   painted.wood = painted.fabric = false;
   paint([...WOOD_MATS, MAT.fabric], 1);
   document.querySelectorAll('.sw button').forEach(b => b.setAttribute('aria-pressed', 'false'));
@@ -1013,6 +1054,7 @@ applyWood();
 applyFabric();
 update();
 resize();
+woodTex(INTRO.wood);                                       // начало — тёмное дерево: его картинку сразу
 loadBed();
 setTimeout(() => WOODS.forEach(w => woodTex(w.id)), 2500);   // заранее — смена будет мгновенной
 </script>
